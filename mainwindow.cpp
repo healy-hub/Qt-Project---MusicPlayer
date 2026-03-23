@@ -18,6 +18,8 @@
 #include <QScrollArea>
 #include <QListWidget>
 #include <QWindow>
+#include <QMenu>
+#include <QAction>
 #include <QSettings>
 #include <QStandardPaths>
 #include "songunit.h"
@@ -79,6 +81,17 @@ void MainWindow::InitWindow()
 
     ui->imagelabel->setFixedSize(300, 300);
     ui->imagelabel->setScaledContents(true);
+    {
+        QSettings settings("misaka", "MusicPlayer");
+        QString coverPath = settings.value("DefaultCover", ":/res/misaka.png").toString();
+        ui->imagelabel->setPixmap(QPixmap(coverPath));
+    }
+
+    // 设置右键菜单策略
+    this->setContextMenuPolicy(Qt::CustomContextMenu);
+    ui->imagelabel->setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this, &MainWindow::showBackgroundContextMenu);
+    connect(ui->imagelabel, &QWidget::customContextMenuRequested, this, &MainWindow::showCoverContextMenu);
 
     // 空列表占位 overlay（不拦截鼠标事件，避免挡住按钮）
     m_emptyOverlayLabel = new QLabel(this);
@@ -511,7 +524,11 @@ void MainWindow::UpdateMetadata()
         }
     }
 
-    if(image_flag) ui->imagelabel->setPixmap(QPixmap(":/res/misaka.png"));
+    if(image_flag) {
+        QSettings settings("misaka", "MusicPlayer");
+        QString coverPath = settings.value("DefaultCover", ":/res/misaka.png").toString();
+        ui->imagelabel->setPixmap(QPixmap(coverPath));
+    }
 
     // 设置歌词：根据当前播放索引加载对应 .lrc 文件
     if (!m_musicplaylist) return;
@@ -552,7 +569,10 @@ void MainWindow::paintEvent(QPaintEvent *event)
     path.addRoundedRect(rect(), 20, 20);
     painter.setClipPath(path);
 
-    QPixmap bg(":/res/background_dark.png");
+    QSettings settings("misaka", "MusicPlayer");
+    QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
+
+    QPixmap bg(bgPath);
     if (!bg.isNull()) {
         painter.drawPixmap(rect(), bg);
     } else {
@@ -855,6 +875,45 @@ void MainWindow::moremenubuttonclick()
             m_moremenuwindow->show();
         }
     }
+}
+
+void MainWindow::showBackgroundContextMenu(const QPoint &pos)
+{
+    QMenu contextMenu(this);
+    QAction *changeBgAction = new QAction("更换背景图片", this);
+    contextMenu.addAction(changeBgAction);
+
+    connect(changeBgAction, &QAction::triggered, this, [this]() {
+        QString filter = QStringLiteral("Images (*.png *.jpg *.jpeg *.bmp *.gif)");
+        QString newPath = QFileDialog::getOpenFileName(this, "选择背景图片", QString(), filter);
+        if (!newPath.isEmpty()) {
+            QSettings settings("misaka", "MusicPlayer");
+            settings.setValue("BackgroundImage", newPath);
+            this->update(); // Trigger paintEvent to redraw
+        }
+    });
+
+    contextMenu.exec(this->mapToGlobal(pos));
+}
+
+void MainWindow::showCoverContextMenu(const QPoint &pos)
+{
+    QMenu contextMenu(ui->imagelabel);
+    QAction *changeCoverAction = new QAction("更换默认封面图片", this);
+    contextMenu.addAction(changeCoverAction);
+
+    connect(changeCoverAction, &QAction::triggered, this, [this]() {
+        QString filter = QStringLiteral("Images (*.png *.jpg *.jpeg *.bmp *.gif)");
+        QString newPath = QFileDialog::getOpenFileName(this, "选择封面图片", QString(), filter);
+        if (!newPath.isEmpty()) {
+            QSettings settings("misaka", "MusicPlayer");
+            settings.setValue("DefaultCover", newPath);
+            // Immediately update if there's no custom metadata cover currently playing
+            UpdateMetadata();
+        }
+    });
+
+    contextMenu.exec(ui->imagelabel->mapToGlobal(pos));
 }
 
 

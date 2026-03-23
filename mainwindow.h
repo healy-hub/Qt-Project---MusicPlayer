@@ -101,6 +101,8 @@ private slots:
     void onPositionChanged(qint64 position);              // 高亮对应歌词行并自动居中
     void onLyricsListWidgetClicked(QModelIndex index);    // 点击歌词行跳转时间并居中
     void onWheelTimerTimeout();                           // 滚轮定时器超时后恢复自动跟随
+    void showBackgroundContextMenu(const QPoint &pos);    // 主窗口背景右键菜单
+    void showCoverContextMenu(const QPoint &pos);         // 封面图片右键菜单
 
 protected:
     void paintEvent(QPaintEvent *event) override;         // 自定义绘制圆角背景
