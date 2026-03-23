@@ -1,4 +1,4 @@
-#include "MediaPlayerPool.h"
+#include "mediaplayerpool.h"
 #include <QMediaMetaData>
 #include <QTimer>
 #include <QDebug>

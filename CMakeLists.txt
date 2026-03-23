@@ -30,7 +30,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         res.qrc
         songunit.h songunit.cpp songunit.ui
         musicplaylist.h musicplaylist.cpp musicplaylist.ui
-        MediaPlayerPool.h mediaplayerpool.cpp
+        mediaplayerpool.h mediaplayerpool.cpp
         lrcparser.h lrcparser.cpp
         playercontroller.h playercontroller.cpp
         moremenu.h moremenu.cpp moremenu.ui
