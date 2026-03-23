@@ -103,6 +103,7 @@ private slots:
     void onWheelTimerTimeout();                           // 滚轮定时器超时后恢复自动跟随
 
 protected:
+    void paintEvent(QPaintEvent *event) override;         // 自定义绘制圆角背景
     void resizeEvent(QResizeEvent *event) override;       // 重绘圆角遮罩、更新 overlay 与列表位置
     bool eventFilter(QObject *obj, QEvent *event) override;  // 列表外点击隐藏、进度条 seek、歌词滚轮、窗口拖拽与边缘缩放
 };

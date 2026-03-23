@@ -71,6 +71,7 @@ void MainWindow::InitWindow()
     this->resize(1235, 833);
 
     setWindowFlags(Qt::FramelessWindowHint);
+    setAttribute(Qt::WA_TranslucentBackground);
     setAutoFillBackground(false);
 
     // 加载样式表
@@ -540,13 +541,29 @@ void MainWindow::MusicEnd()
     }
 }
 
+/** @brief 自定义绘制窗口的圆角背景，以避免使用 setMask 带来的锯齿问题。 */
+void MainWindow::paintEvent(QPaintEvent *event)
+{
+    Q_UNUSED(event);
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+
+    QPainterPath path;
+    path.addRoundedRect(rect(), 20, 20);
+    painter.setClipPath(path);
+
+    QPixmap bg(":/res/background_dark.png");
+    if (!bg.isNull()) {
+        painter.drawPixmap(rect(), bg);
+    } else {
+        painter.fillPath(path, QColor(33, 33, 41)); // Fallback color
+    }
+}
+
 /** @brief 窗口大小变化时重绘圆角遮罩、更新空列表 overlay 几何、播放列表位置与歌词列表高度。 */
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
-    QPainterPath path;
-    path.addRoundedRect(rect(), 20, 20);
-    setMask(QRegion(path.toFillPolygon().toPolygon()));
 
     if (m_emptyOverlayLabel) {
         // 让 overlay 始终覆盖窗口区域，文本自然居中
