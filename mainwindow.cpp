@@ -15,6 +15,9 @@
 #include <QApplication>
 #include <QGraphicsOpacityEffect>
 #include <QFileDialog>
+#include <QScrollArea>
+#include <QListWidget>
+#include <QWindow>
 #include "songunit.h"
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
@@ -101,6 +104,12 @@ void MainWindow::InitWindow()
     // 初始化窗口调整大小相关变量
     m_isResizing = false;
     m_resizeEdge = NoEdge;
+    
+    // 启用鼠标追踪，确保即使不按下鼠标，悬停在边缘时也能改变光标样式
+    this->setMouseTracking(true);
+    if (ui->centralwidget) {
+        ui->centralwidget->setMouseTracking(true);
+    }
 
     ui->Slider->installEventFilter(this);
     this->installEventFilter(this);
@@ -610,53 +619,45 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         return false;   // 允许事件继续传递给 QListWidget，使其能够滚动
     }
 
-    // 处理窗口拖动和调整大小
-    if (obj == this) {
-        if (event->type() == QEvent::MouseButtonPress) {
+    // 全局处理窗口拖动和调整大小
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseMove || event->type() == QEvent::MouseButtonRelease) {
+        QWidget *widget = qobject_cast<QWidget*>(obj);
+        // 只处理属于当前主窗口及其子控件的鼠标事件
+        if (widget && widget->window() == this) {
             QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-            if (mouseEvent->button() == Qt::LeftButton) {
-                // 首先检查是否在调整大小区域
-                Edge edge = getEdge(mouseEvent->pos());
-                if (edge != NoEdge && mouseEvent->pos().y() >= 50) {
-                    // 在非标题栏区域检测到边缘，开始调整大小
-                    startResize(edge, mouseEvent->pos());
-                    return true;
+            QPoint posInWindow = this->mapFromGlobal(mouseEvent->globalPosition().toPoint());
+
+            if (event->type() == QEvent::MouseButtonPress && mouseEvent->button() == Qt::LeftButton) {
+                // 排除按钮、滑块、列表等交互控件
+                if (!qobject_cast<QPushButton*>(obj) && !qobject_cast<QSlider*>(obj) && !qobject_cast<QListWidget*>(obj) && !qobject_cast<QScrollArea*>(obj)) {
+                    Edge edge = getEdge(posInWindow);
+                    if (edge != NoEdge) {
+                        // 边缘缩放（适配 Wayland 和 X11）
+                        if (QWindow *window = this->windowHandle()) {
+                            Qt::Edges qtEdges;
+                            if (edge & LeftEdge) qtEdges |= Qt::LeftEdge;
+                            if (edge & RightEdge) qtEdges |= Qt::RightEdge;
+                            if (edge & TopEdge) qtEdges |= Qt::TopEdge;
+                            if (edge & BottomEdge) qtEdges |= Qt::BottomEdge;
+                            window->startSystemResize(qtEdges);
+                            return true;
+                        }
+                    } else if (posInWindow.y() < 150 || widget == ui->centralwidget || qobject_cast<QLabel*>(obj)) {
+                        // 扩大拖拽区域：只要是在顶部 150px 或者是点击到了背景、文本标签（如标题）就执行拖动
+                        if (QWindow *window = this->windowHandle()) {
+                            window->startSystemMove();
+                            return true;
+                        }
+                    }
                 }
-                
-                // 检查鼠标是否在窗口顶部区域（用于拖动）
-                if (mouseEvent->pos().y() < 50) {
-                    m_isDragging = true;
-                    m_dragStartPos = mouseEvent->globalPosition() - this->frameGeometry().topLeft();
+            } else if (event->type() == QEvent::MouseMove) {
+                if (!(mouseEvent->buttons() & Qt::LeftButton)) {
+                    // 当没有拖拽时，悬浮在边缘改变光标
+                    if (!qobject_cast<QPushButton*>(obj) && !qobject_cast<QSlider*>(obj)) {
+                        Edge edge = getEdge(posInWindow);
+                        updateCursor(edge);
+                    }
                 }
-            }
-        } else if (event->type() == QEvent::MouseMove) {
-            QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
-            
-            // 如果正在调整大小
-            if (m_isResizing) {
-                performResize(mouseEvent->pos());
-                return true;
-            }
-            
-            // 如果正在拖动窗口
-            if (m_isDragging) {
-                QPointF newPos = mouseEvent->globalPosition() - m_dragStartPos;
-                this->move(newPos.toPoint());
-                return true;
-            }
-            
-            // 如果没有按下鼠标按钮，更新光标形状
-            if (!(mouseEvent->buttons() & Qt::LeftButton)) {
-                Edge edge = getEdge(mouseEvent->pos());
-                updateCursor(edge);
-            }
-        } else if (event->type() == QEvent::MouseButtonRelease) {
-            // 停止拖动和调整大小
-            m_isDragging = false;
-            if (m_isResizing) {
-                m_isResizing = false;
-                m_resizeEdge = NoEdge;
-                this->unsetCursor();
             }
         }
     }
