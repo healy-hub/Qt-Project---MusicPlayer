@@ -573,6 +573,38 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
+    // 更多菜单弹出后：点击主窗口其它区域自动隐藏
+    if (event->type() == QEvent::MouseButtonPress && m_moremenuwindow && m_moremenuwindow->isVisible()) {
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            const QPoint globalPos = mouseEvent->globalPosition().toPoint();
+
+            const QRect menuGlobalRect(
+                m_moremenuwindow->mapToGlobal(QPoint(0, 0)),
+                m_moremenuwindow->size()
+            );
+
+            // 点击在菜单内部：不隐藏
+            if (menuGlobalRect.contains(globalPos)) {
+                return QMainWindow::eventFilter(obj, event);
+            }
+
+            // 点击在 moreButton：交给按钮的 moremenubuttonclick 逻辑处理
+            if (ui && ui->moreButton) {
+                const QRect moreBtnGlobalRect(
+                    ui->moreButton->mapToGlobal(QPoint(0, 0)),
+                    ui->moreButton->size()
+                );
+                if (moreBtnGlobalRect.contains(globalPos)) {
+                    return QMainWindow::eventFilter(obj, event);
+                }
+            }
+
+            // 其它任意位置：隐藏菜单
+            m_moremenuwindow->hide();
+        }
+    }
+
     if (obj == ui->Slider) {
         // 鼠标按下：开始一次拖动/点选，不立刻改变播放进度
         if (event->type() == QEvent::MouseButtonPress)
