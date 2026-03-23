@@ -17,11 +17,18 @@ void SongUnit::InitUnit()
     ui->artistlabel->setText(m_music_artist);
 }
 
-/** @brief 构造：保存 id/封面/url/标题/艺术家，setupUi 后 InitUnit。 */
+/** @brief 构造：保存 id/封面/url/标题/艺术家，setupUi 后 InitUnit。封面缩放为 60x60 缩略图以节省内存。 */
 SongUnit::SongUnit(int id, QPixmap pix, QUrl url, QString name, QString artist, QWidget *parent)
     : QWidget(parent)
-    , ui(new Ui::SongUnit), m_music_id(id), m_music_pixmap(pix) ,m_music_url(url), m_music_name(name), m_music_artist(artist)
+    , ui(new Ui::SongUnit), m_music_id(id), m_music_url(url), m_music_name(name), m_music_artist(artist)
 {
+    // 将封面图缩放到 60x60 以大幅减少内存占用
+    if (!pix.isNull()) {
+        m_music_pixmap = pix.scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    } else {
+        m_music_pixmap = pix;
+    }
+    
     ui->setupUi(this);
     InitUnit();
 }
@@ -46,10 +53,14 @@ void SongUnit::SetId(int id)
     m_music_id = id;
 }
 
-/** @brief 设置封面图。 */
+/** @brief 设置封面图（自动缩放为缩略图）。 */
 void SongUnit::SetPixmap(const QPixmap pix)
 {
-    m_music_pixmap = pix;
+    if (!pix.isNull()) {
+        m_music_pixmap = pix.scaled(60, 60, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    } else {
+        m_music_pixmap = pix;
+    }
 }
 
 /** @brief 设置曲目名称。 */

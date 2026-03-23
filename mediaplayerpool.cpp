@@ -39,6 +39,11 @@ MediaPlayerPool::MediaPlayerPool(int maxConcurrent, QObject *parent)
                     cover = QPixmap::fromImage(coverArt.value<QImage>());
                 }
             }
+            
+            // 缩放封面图以减少解析过程中的内存占用
+            if (!cover.isNull() && (cover.width() > 200 || cover.height() > 200)) {
+                cover = cover.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+            }
 
             emit taskFinished(taskId, cover, title, artist);
             releaseWorker(worker);
