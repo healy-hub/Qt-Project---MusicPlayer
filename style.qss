@@ -13,7 +13,6 @@ MainWindow {
 QPushButton {
     background-color: transparent;
     border-style: none;
-    background-color: White;
 }
 
 /* 最小化按钮样式 */

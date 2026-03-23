@@ -16,6 +16,7 @@
 #include <QResizeEvent>
 #include <QLabel>
 #include <QKeyEvent>
+#include <QColor>
 #include "musicplaylist.h"
 #include "playercontroller.h"
 #include "lrcparser.h"
@@ -74,7 +75,7 @@ private:
     void InitWindow();                                    // 初始化窗口：标题、无边框、样式、overlay、事件过滤
     void loadStyleSheet();                                // 从 :/style.qss 加载并应用样式
     void InitButtons();                                   // 设置按钮图标并连接信号
-    void InitButtonIcon(QPushButton *button, const QString &path);  // 设置按钮尺寸与图标
+    void InitButtonIcon(QPushButton *button, const QString &path, const QColor &color = Qt::transparent);  // 设置按钮尺寸与图标
     void InitPlayList();                                  // 创建 MusicList 目录、播放列表控件并交给 PlayerController
     void InitLrcParser();                                 // 创建 LrcParser、连接 positionChanged 与歌词列表
     void updatePlaybackControlsEnabled(bool enabled);     // 根据是否有歌曲启用/禁用播放相关控件

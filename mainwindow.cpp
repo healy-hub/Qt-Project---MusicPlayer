@@ -168,9 +168,9 @@ void MainWindow::InitButtons()
     InitButtonIcon(ui->nextButton, ":/res/next song.png");
     InitButtonIcon(ui->modeButton, ":/res/list play.png");
     InitButtonIcon(ui->listButton, ":/res/playlist.png");
-    InitButtonIcon(ui->minimizeButton, ":/res/Minimize.png");
-    InitButtonIcon(ui->maximizeButton, ":/res/Maximize.png");
-    InitButtonIcon(ui->closeButton, ":/res/close.png");
+    InitButtonIcon(ui->minimizeButton, ":/res/Minimize.png", Qt::black);
+    InitButtonIcon(ui->maximizeButton, ":/res/Maximize.png", Qt::black);
+    InitButtonIcon(ui->closeButton, ":/res/close.png", Qt::black);
     InitButtonIcon(ui->moreButton, ":/res/more.png");
 
     connect(ui->modeButton, &QPushButton::clicked, this, [this](){
@@ -198,11 +198,18 @@ void MainWindow::InitButtons()
     connect(ui->moreButton, &QPushButton::clicked, this, &MainWindow::moremenubuttonclick);
 }
 
-/** @brief 设置按钮固定 30x30 及图标与图标尺寸。 */
-void MainWindow::InitButtonIcon(QPushButton *button, const QString & path)
+/** @brief 设置按钮固定 30x30 及图标与图标尺寸。支持可选的图标着色。 */
+void MainWindow::InitButtonIcon(QPushButton *button, const QString & path, const QColor & color)
 {
     button->setFixedSize(30, 30);
-    button->setIcon(QIcon(path));
+    QPixmap pixmap(path);
+    if (color != Qt::transparent) {
+        QPainter painter(&pixmap);
+        painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+        painter.fillRect(pixmap.rect(), color);
+        painter.end();
+    }
+    button->setIcon(QIcon(pixmap));
     button->setIconSize(QSize(button->width(), button->height()));
 }
 
