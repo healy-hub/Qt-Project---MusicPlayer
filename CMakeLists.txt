@@ -28,7 +28,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
         res.qrc
-        songunit.h songunit.cpp songunit.ui
+        songitemdelegate.h
         musicplaylist.h musicplaylist.cpp musicplaylist.ui
         mediaplayerpool.h mediaplayerpool.cpp
         lrcparser.h lrcparser.cpp

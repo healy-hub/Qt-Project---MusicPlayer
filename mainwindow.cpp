@@ -22,7 +22,7 @@
 #include <QAction>
 #include <QSettings>
 #include <QStandardPaths>
-#include "songunit.h"
+// #include "songunit.h"  <-- 这行已删除
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
 void MainWindow::updatePlaybackControlsEnabled(bool enabled)
