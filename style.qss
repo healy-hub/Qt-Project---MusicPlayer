@@ -142,7 +142,6 @@ SongUnit:hover QLabel#artistlabel {
 /* 水平 QSlider 进度条（修复圆形滑块） */
 QSlider {
     height: 17px; /* 轨道高度，固定值 */
-    qproperty-style: Fusion; /* 强制启用Fusion风格，避免原生样式覆盖（关键） */
 }
 
 /* 轨道整体 */
@@ -172,7 +171,6 @@ QSlider::handle:horizontal {
     height: 16px; /* 与宽度一致 */
     margin: -4px 0px; /* 垂直居中：-(滑块高度-轨道高度)/2 = -(16-8)/2 = -4 */
     border-radius: 8px; /* 必须 = 宽度/2（16/2=8），否则是圆角矩形/方形 */
-    cursor: pointer;
     outline: none; /* 去掉焦点虚线框 */
 }
 
