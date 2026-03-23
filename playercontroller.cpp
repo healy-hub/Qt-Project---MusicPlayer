@@ -5,6 +5,8 @@
 #include <QDir>
 #include <QRandomGenerator>
 #include <QTimer>
+#include <QSettings>
+#include <QStandardPaths>
 
 namespace {
 bool isSupportedAudioFile(const QString& filePath)
@@ -163,11 +165,13 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
 
     // 若没有 playlist.json（或为空），保持兼容：扫描 MusicList 并写入 playlist.json（hasMetadata=false）
     if (index == 0) {
-        const QString exeDir = QCoreApplication::applicationDirPath();
-        const QString musicListPath = exeDir + "/MusicList";
+        QSettings settings("misaka", "MusicPlayer");
+        QString defaultMusicPath = QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/MusicPlayer";
+        const QString musicListPath = settings.value("MusicDir", defaultMusicPath).toString();
+
         QDir dir;
         if (!dir.exists(musicListPath)) {
-            dir.mkdir(musicListPath);
+            dir.mkpath(musicListPath);
         }
 
         QDir musicDir(musicListPath);

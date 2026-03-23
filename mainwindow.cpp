@@ -18,6 +18,8 @@
 #include <QScrollArea>
 #include <QListWidget>
 #include <QWindow>
+#include <QSettings>
+#include <QStandardPaths>
 #include "songunit.h"
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
@@ -100,6 +102,7 @@ void MainWindow::InitWindow()
     m_moremenuwindow = new MoreMenu(this);
     m_moremenuwindow->hide();
     connect(m_moremenuwindow, &MoreMenu::addMusicClicked, this, &MainWindow::onAddMusicFromMoreMenu);
+    connect(m_moremenuwindow, &MoreMenu::setMusicDirClicked, this, &MainWindow::onSetMusicDirClicked);
 
     // 初始化窗口调整大小相关变量
     m_isResizing = false;
@@ -127,6 +130,20 @@ void MainWindow::onAddMusicFromMoreMenu()
     if (files.isEmpty()) return;
 
     m_playerController->AddLocalFiles(files);
+}
+
+void MainWindow::onSetMusicDirClicked()
+{
+    QSettings settings("misaka", "MusicPlayer");
+    QString defaultMusicPath = QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/MusicPlayer";
+    QString currentDir = settings.value("MusicDir", defaultMusicPath).toString();
+
+    QString newDir = QFileDialog::getExistingDirectory(this, QStringLiteral("选择默认音乐目录"), currentDir);
+    if (!newDir.isEmpty()) {
+        settings.setValue("MusicDir", newDir);
+        // Note: Changing dir at runtime may require reloading or restarting
+        // For simplicity, we just save it. The user can restart or add music manually.
+    }
 }
 
 /** @brief 设置各按钮图标并连接信号：模式切换、上一首/下一首、播放/暂停、列表、最小化/最大化/关闭。 */
@@ -178,10 +195,13 @@ void MainWindow::InitButtonIcon(QPushButton *button, const QString & path)
 /** @brief 创建 MusicList 目录（若不存在）、MusicPlaylist 控件，更新位置并交给 PlayerController 初始化。 */
 void MainWindow::InitPlayList()
 {
-    QString musicListPath = QCoreApplication::applicationDirPath() + "/MusicList";
+    QSettings settings("misaka", "MusicPlayer");
+    QString defaultMusicPath = QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/MusicPlayer";
+    QString musicListPath = settings.value("MusicDir", defaultMusicPath).toString();
+
     QDir dir;
     if (!dir.exists(musicListPath))
-        dir.mkdir(musicListPath);
+        dir.mkpath(musicListPath);
 
     m_musicplaylist = new MusicPlaylist(this);
     m_musicplaylist->hide();

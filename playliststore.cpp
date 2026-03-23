@@ -1,5 +1,4 @@
 #include "playliststore.h"
-
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -10,14 +9,19 @@
 #include <QJsonParseError>
 #include <QSaveFile>
 #include <QUrl>
+#include <QStandardPaths>
 
 namespace {
 constexpr int kPlaylistVersion = 1;
 } // namespace
 
 PlaylistStore::PlaylistStore()
-    : m_appDir(QCoreApplication::applicationDirPath())
+    : m_appDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation))
 {
+    QDir dir(m_appDir);
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
 }
 
 QString PlaylistStore::playlistJsonAbsPath() const

@@ -93,6 +93,7 @@ private slots:
     void UpdateMetadata();                                // 从当前播放器读取元数据并更新封面/标题/艺术家/歌词
     void MusicEnd();                                      // 当前曲目结束，通知 PlayerController 切下一首
     void onAddMusicFromMoreMenu();                        // MoreMenu -> 添加音乐
+    void onSetMusicDirClicked();                          // MoreMenu -> 设置音乐目录
     void updateSliderPosition(qint64 position);           // 同步播放位置到进度条
     void updateSliderRange(qint64 duration);              // 设置进度条范围
     void updatalyricsListWidget();                        // 根据窗口宽度设置歌词列表高度

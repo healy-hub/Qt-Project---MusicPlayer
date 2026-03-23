@@ -7,17 +7,24 @@
     <x>0</x>
     <y>0</y>
     <width>150</width>
-    <height>50</height>
+    <height>100</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout">
-   <item row="0" column="0">
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
     <widget class="QPushButton" name="addMusic">
      <property name="text">
       <string>添加音乐</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="setMusicDir">
+     <property name="text">
+      <string>设置音乐目录</string>
      </property>
     </widget>
    </item>

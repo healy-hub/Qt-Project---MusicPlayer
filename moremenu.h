@@ -17,6 +17,7 @@ public:
 
 signals:
     void addMusicClicked();
+    void setMusicDirClicked();
 
 private:
     Ui::MoreMenu *ui;
