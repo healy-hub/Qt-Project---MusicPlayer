@@ -9,6 +9,19 @@ MainWindow {
     border-radius: 10px;
 }
 
+#Controlwidget MarqueeLabel#namelabel {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333333;
+}
+
+#Controlwidget MarqueeLabel#artistlabel {
+    font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    font-size: 14px;
+    color: #666666;
+}
+
 /* 按钮样式 */
 QPushButton {
     background-color: transparent;

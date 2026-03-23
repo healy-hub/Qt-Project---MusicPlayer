@@ -165,13 +165,13 @@
             <widget class="MarqueeLabel" name="namelabel">
              <property name="minimumSize">
               <size>
-               <width>200</width>
+               <width>250</width>
                <height>0</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>200</width>
+               <width>250</width>
                <height>16777215</height>
               </size>
              </property>
@@ -184,13 +184,13 @@
             <widget class="MarqueeLabel" name="artistlabel">
              <property name="minimumSize">
               <size>
-               <width>200</width>
+               <width>250</width>
                <height>0</height>
               </size>
              </property>
              <property name="maximumSize">
               <size>
-               <width>200</width>
+               <width>250</width>
                <height>16777215</height>
               </size>
              </property>
