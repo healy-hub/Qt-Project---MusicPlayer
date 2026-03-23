@@ -751,8 +751,68 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
+    // 处理键盘快进/后退
+    if (event->type() == QEvent::KeyPress) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        if (keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right) {
+            this->keyPressEvent(keyEvent);
+            return true;
+        }
+    }
+
     // 其他事件交给父类处理
     return QMainWindow::eventFilter(obj, event);
+}
+
+/** @brief 键盘按下事件：实现方向键快进/后退。单次按下 5s，长按 1s 步进。 */
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right) {
+        if (!m_playerController || m_playerController->GetCurrentIndex() < 0) {
+            QMainWindow::keyPressEvent(event);
+            return;
+        }
+
+        QMediaPlayer *player = m_playerController->GetPlayer();
+        if (!player) return;
+
+        qint64 duration = player->duration();
+        qint64 currentPos = player->position();
+        
+        // 如果正在手动拖动进度条，不处理键盘 seek
+        if (m_sliderPressed) {
+            event->ignore();
+            return;
+        }
+
+        // 长按时 1s 步进，单次按下 5s 步进
+        qint64 step = event->isAutoRepeat() ? 1000 : 5000;
+        
+        if (event->key() == Qt::Key_Left) {
+            qint64 newPos = qMax<qint64>(0, currentPos - step);
+            player->setPosition(newPos);
+            ui->Slider->setValue(static_cast<int>(newPos));
+        } else {
+            qint64 newPos = qMin<qint64>(duration, currentPos + step);
+            player->setPosition(newPos);
+            ui->Slider->setValue(static_cast<int>(newPos));
+            
+            // 如果快进到末尾，触发切歌
+            if (duration > 0 && newPos >= duration) {
+                MusicEnd();
+            }
+        }
+
+        // 短时间内忽略 positionChanged 信号，防止滑块跳回
+        m_ignoreSliderUpdate = true;
+        QTimer::singleShot(150, this, [this]() {
+            m_ignoreSliderUpdate = false;
+        });
+
+        event->accept();
+    } else {
+        QMainWindow::keyPressEvent(event);
+    }
 }
 
 /** @brief 根据鼠标在窗口内的位置返回可拖拽边缘（左/右/上/下及其组合）。 */
