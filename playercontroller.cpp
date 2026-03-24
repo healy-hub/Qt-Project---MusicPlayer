@@ -144,16 +144,31 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
 
         if (t.hasMetadata) {
             QPixmap cover = m_store.loadCoverForTrack(t);
-            if (cover.isNull()) cover = defaultCover;
+            bool coverLoaded = !cover.isNull();
+            if (!coverLoaded) cover = defaultCover;
 
             QString title = t.title;
+            // 如果缓存标题为空，尝试从 URL 获取文件名作为兜底
+            if (title.isEmpty()) {
+                title = url.fileName();
+            }
             if (title.isEmpty()) title = "未知曲目";
+
             QString artist = t.artist;
             if (artist.isEmpty()) artist = "未知艺术家";
 
             m_musicplaylist->AppendMusic(cover, url, title, artist);
+            
+            // 如果缓存声明有元数据但封面加载失败（比如本地缓存被手动删了），重新加入解析队列补全
+            if (!coverLoaded && m_pool) {
+                m_pool->addTask(url, index);
+            }
         } else {
-            m_musicplaylist->AppendMusic(defaultCover, url, "加载中", "加载中");
+            // 初始占位也优先使用文件名
+            QString placeholderTitle = url.fileName();
+            if (placeholderTitle.isEmpty()) placeholderTitle = "加载中";
+            
+            m_musicplaylist->AppendMusic(defaultCover, url, placeholderTitle, "加载中");
             if (m_pool) {
                 m_pool->addTask(url, index);
             }

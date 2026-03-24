@@ -182,14 +182,16 @@ bool PlaylistStore::markMetadata(const QString& urlString, const QPixmap& cover,
     if (t.key.isEmpty()) t.key = makeKeyFromUrlString(urlString);
     t.coverPath = coverRelPathForKey(t.key);
 
-    QPixmap finalCover = cover.isNull() ? QPixmap(QStringLiteral(":/res/misaka.png")) : cover;
-    
-    // 缩放缓存图片到 200x200 以节省磁盘空间并提高加载速度
-    if (!finalCover.isNull() && (finalCover.width() > 200 || finalCover.height() > 200)) {
-        finalCover = finalCover.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    // 只有当封面不为空时才保存到本地文件系统
+    if (!cover.isNull()) {
+        QPixmap finalCover = cover;
+        // 缩放缓存图片到 200x200 以节省磁盘空间并提高加载速度
+        if (finalCover.width() > 200 || finalCover.height() > 200) {
+            finalCover = finalCover.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        }
+        finalCover.save(coverAbsPathForKey(t.key), "PNG");
     }
-    
-    finalCover.save(coverAbsPathForKey(t.key), "PNG");
+
     return true;
 }
 

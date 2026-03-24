@@ -35,6 +35,7 @@ private:
 
     void assignTask(Worker *worker);    // 从队列取任务并交给 worker 加载
     void releaseWorker(Worker *worker); // 任务完成或失败时回收 worker 并继续调度
+    void processMetaData(Worker *worker); // 处理元数据提取与任务完成逻辑
 
     QList<Worker*> m_workers;
     QQueue<Worker*> m_idleWorkers;
