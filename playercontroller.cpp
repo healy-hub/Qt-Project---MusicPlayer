@@ -163,40 +163,43 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
         ++index;
     }
 
-    // 若没有 playlist.json（或为空），保持兼容：扫描 MusicList 并写入 playlist.json（hasMetadata=false）
-    if (index == 0) {
-        QSettings settings("misaka", "MusicPlayer");
-        QString defaultMusicPath = QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/MusicPlayer";
-        const QString musicListPath = settings.value("MusicDir", defaultMusicPath).toString();
+    // 扫描 MusicList 目录并自动添加新发现的文件（合并到缓存列表）
+    QSettings settings("misaka", "MusicPlayer");
+    QString defaultMusicPath = QStandardPaths::writableLocation(QStandardPaths::MusicLocation) + "/MusicPlayer";
+    const QString musicListPath = settings.value("MusicDir", defaultMusicPath).toString();
 
-        QDir dir;
-        if (!dir.exists(musicListPath)) {
-            dir.mkpath(musicListPath);
+    QDir dir;
+    if (!dir.exists(musicListPath)) {
+        dir.mkpath(musicListPath);
+    }
+
+    QDir musicDir(musicListPath);
+    const QFileInfoList allFiles = musicDir.entryInfoList(QDir::Files);
+
+    bool playlistChanged = false;
+    for (const QFileInfo& fileInfo : allFiles) {
+        const QString absPath = fileInfo.absoluteFilePath();
+        if (!isSupportedAudioFile(absPath)) continue;
+
+        const QUrl url = QUrl::fromLocalFile(absPath);
+        
+        // 关键优化：如果该文件已经在缓存中（m_urlToIndex 已包含），则跳过，不再重复添加
+        if (m_urlToIndex.contains(url)) continue;
+
+        m_musicplaylist->AppendMusic(defaultCover, url, "加载中", "加载中");
+        m_urlToIndex[url] = index;
+        if (m_pool) {
+            m_pool->addTask(url, index);
         }
 
-        QDir musicDir(musicListPath);
-        const QFileInfoList allFiles = musicDir.entryInfoList(QDir::Files);
+        m_store.upsertTrack(url.toString());
+        playlistChanged = true;
 
-        bool playlistChanged = false;
-        for (const QFileInfo& fileInfo : allFiles) {
-            const QString absPath = fileInfo.absoluteFilePath();
-            if (!isSupportedAudioFile(absPath)) continue;
+        ++index;
+    }
 
-            const QUrl url = QUrl::fromLocalFile(absPath);
-            m_musicplaylist->AppendMusic(defaultCover, url, "加载中", "加载中");
-            m_urlToIndex[url] = index;
-            if (m_pool) {
-                m_pool->addTask(url, index);
-            }
-
-            m_store.upsertTrack(url.toString());
-            playlistChanged = true;
-
-            ++index;
-        }
-        if (playlistChanged) {
-            m_store.saveAtomic();
-        }
+    if (playlistChanged) {
+        m_store.saveAtomic();
     }
 
     if (m_pool) m_pool->start();
