@@ -76,11 +76,111 @@ set_target_properties(MusicPlayer PROPERTIES
 )
 
 include(GNUInstallDirs)
+
+# ========== 安装与打包配置 ==========
+
+# 基础安装前缀设为 /opt/MusicPlayer
+set(BASE_INST_DIR "opt/MusicPlayer")
+
+# 1. 安装可执行文件到 /opt/MusicPlayer/bin
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 install(TARGETS MusicPlayer
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    RUNTIME DESTINATION "${BASE_INST_DIR}/bin"
 )
+
+# 2. 安装背景图片
+install(FILES 
+    "res/background.png"
+    "res/background_dark.png"
+    "res/background_fade.png"
+    "res/background_fade2.png"
+    DESTINATION "${BASE_INST_DIR}/share/backgrounds"
+)
+
+# 3. 安装图标 (用于 .desktop 文件，使用绝对路径确保系统识别)
+install(FILES "res/misaka.png"
+    DESTINATION "usr/share/icons/hicolor/256x256/apps"
+    RENAME "MusicPlayer.png"
+)
+
+# 4. 安装 .desktop 文件到系统应用目录 (使用绝对路径确保系统识别)
+install(FILES "MusicPlayer.desktop"
+    DESTINATION "usr/share/applications"
+)
+
+# ========== 运行时依赖与插件打包逻辑 ==========
+
+if(QT_VERSION_MAJOR EQUAL 6)
+    get_target_property(_qt_library_path Qt6::Core LOCATION)
+else()
+    get_target_property(_qt_library_path Qt5::Core LOCATION)
+endif()
+get_filename_component(_qt_bin_dir "${_qt_library_path}" DIRECTORY)
+get_filename_component(_qt_root_dir "${_qt_bin_dir}" DIRECTORY)
+set(QT_PLUGINS_DIR_REAL "${_qt_root_dir}/plugins")
+
+install(CODE "
+    set(QT_PLUGINS_DIR \"${QT_PLUGINS_DIR_REAL}\")
+    set(BASE_LIB_DIR \"${BASE_INST_DIR}/lib\")
+    set(BASE_PLUGINS_DIR \"${BASE_INST_DIR}/plugins\")
+    
+    # 1. 获取并安装运行时依赖库
+    file(GET_RUNTIME_DEPENDENCIES
+        EXECUTABLES \"$<TARGET_FILE:MusicPlayer>\"
+        RESOLVED_DEPENDENCIES_VAR _resolved_deps
+        UNRESOLVED_DEPENDENCIES_VAR _unresolved_deps
+        PRE_EXCLUDE_REGEXES 
+            \"libc\\\\.so.*\" \"libgcc_s\\\\.so.*\" \"libm\\\\.so.*\" \"libpthread\\\\.so.*\" \"libstdc\\\\+\\\\+\\\\.so.*\" 
+            \"libdl\\\\.so.*\" \"librt\\\\.so.*\" \"libutil\\\\.so.*\" \"libX11\\\\.so.*\" \"libxcb\\\\.so.*\" 
+            \"libglib-2\\\\.0\\\\.so.*\" \"libz\\\\.so.*\" \"libsystemd\\\\.so.*\" \"libasound\\\\.so.*\"
+            \"libssl\\\\.so.*\" \"libcrypto\\\\.so.*\" \"libfontconfig\\\\.so.*\" \"libfreetype\\\\.so.*\"
+            \"libdbus-1\\\\.so.*\" \"libgpg-error\\\\.so.*\" \"libgcrypt\\\\.so.*\" \"liblzma\\\\.so.*\"
+            \"libxml2\\\\.so.*\" \"libffi\\\\.so.*\" \"libzstd\\\\.so.*\" \"libcap\\\\.so.*\"
+    )
+    
+    foreach(_file \${_resolved_deps})
+        file(INSTALL
+            DESTINATION \"\${CMAKE_INSTALL_PREFIX}/\${BASE_LIB_DIR}\"
+            TYPE SHARED_LIBRARY
+            FILES \"\${_file}\"
+            FOLLOW_SYMLINK_CHAIN
+        )
+    endforeach()
+
+    # 2. 打包 Qt 插件
+    set(_plugins_to_copy \"platforms\" \"multimedia\" \"imageformats\")
+    foreach(_plugin \${_plugins_to_copy})
+        if(EXISTS \"\${QT_PLUGINS_DIR}/\${_plugin}\")
+            file(INSTALL
+                DESTINATION \"\${CMAKE_INSTALL_PREFIX}/\${BASE_PLUGINS_DIR}\"
+                TYPE DIRECTORY
+                FILES \"\${QT_PLUGINS_DIR}/\${_plugin}\"
+            )
+        endif()
+    endforeach()
+")
+
+# ========== CPack 配置 (用于生成 RPM 包) ==========
+set(CPACK_PACKAGE_NAME "MusicPlayer")
+set(CPACK_PACKAGE_VENDOR "misaka")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "A simple local music player built with Qt6")
+set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
+set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
+set(CPACK_GENERATOR "RPM")
+set(CPACK_PACKAGING_INSTALL_PREFIX "/") # 设为根目录，让 BASE_INST_DIR 有效
+
+# RPM 专用设置
+set(CPACK_RPM_PACKAGE_LICENSE "MIT")
+set(CPACK_RPM_PACKAGE_GROUP "Applications/Multimedia")
+set(CPACK_RPM_PACKAGE_AUTOREQ "YES") 
+
+# 核心修正：排除所有系统级共享目录
+set(CPACK_RPM_EXCLUDE_FROM_AUTO_FILELIST_ADDITION 
+    "/opt" "/usr" "/usr/share" "/usr/share/applications" "/usr/share/icons" "/usr/share/icons/hicolor" "/usr/share/icons/hicolor/256x256" "/usr/share/icons/hicolor/256x256/apps"
+)
+
+include(CPack)
 
 if(QT_VERSION_MAJOR EQUAL 6)
     qt_finalize_executable(MusicPlayer)

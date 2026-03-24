@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=MusicPlayer
+Comment=A simple Qt6 Music Player
+Exec=/opt/MusicPlayer/bin/MusicPlayer
+Icon=MusicPlayer
+Terminal=false
+Categories=AudioVideo;Audio;Player;Qt;
+StartupWMClass=MusicPlayer
