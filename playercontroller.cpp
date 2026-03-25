@@ -7,6 +7,8 @@
 #include <QTimer>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QMediaDevices>
+#include <QAudioDevice>
 
 namespace {
 bool isSupportedAudioFile(const QString& filePath)
@@ -37,7 +39,14 @@ PlayerController::PlayerController(QObject *parent)
 {
     m_player->setAudioOutput(m_audioOutput);
 
-    // 部分音频在 play() 后会停留在 0ms 不前进（直到发生一次 seek），这里做一次“卡住检测”自动唤醒。
+    // 监听音频设备变化（如插入/拔出耳机），自动切换到新默认设备
+    QMediaDevices *devices = new QMediaDevices(this);
+    connect(devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
+        m_audioOutput->setDevice(QMediaDevices::defaultAudioOutput());
+    });
+
+    // 部分音频在 play() 后会停留在 0ms 不前进
+    // （直到发生一次 seek），这里做一次“卡住检测”自动唤醒。
     connect(m_player, &QMediaPlayer::playbackStateChanged, this, [this](QMediaPlayer::PlaybackState state) {
         if (state != QMediaPlayer::PlayingState) return;
 
