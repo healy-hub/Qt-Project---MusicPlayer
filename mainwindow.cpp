@@ -22,6 +22,7 @@
 #include <QAction>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QDateTime>
 // #include "songunit.h"  <-- 这行已删除
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
@@ -113,6 +114,9 @@ void MainWindow::InitWindow()
     m_ignoreSliderUpdate = false;
     m_pendingSeek = -1;
     m_isDragging = false;
+    m_lastLrcIndex = -1; // 初始化歌词索引
+    updateBackground();  // 初始加载背景图
+
     m_moremenuwindow = new MoreMenu(this);
     m_moremenuwindow->hide();
     connect(m_moremenuwindow, &MoreMenu::addMusicClicked, this, &MainWindow::onAddMusicFromMoreMenu);
@@ -249,6 +253,7 @@ void MainWindow::InitLrcParser()
     ui->lyricsListWidget->installEventFilter(this);
     ui->lyricsListWidget->viewport()->installEventFilter(this);
     m_manualScroll = false;
+    m_lastLrcIndex = -1;
 }
 
 /** @brief 根据当前窗口宽高计算播放列表目标位置与高度并设置。 */
@@ -340,10 +345,17 @@ void MainWindow::updatalyricsListWidget()
     ui->lyricsListWidget->setFixedHeight(window_width / 2);
 }
 
-/** @brief 槽：播放位置变化时同步到进度条；拖动或 ignore 窗口内不更新。 */
+/** @brief 槽：播放位置变化时同步到进度条；拖动或 ignore 窗口内不更新。限制每 100ms 更新一次。 */
 void MainWindow::updateSliderPosition(qint64 position)
 {
     if (m_sliderPressed || m_ignoreSliderUpdate) return;
+    
+    // 节流：每 100ms 更新一次进度条 UI
+    static qint64 lastUpdate = 0;
+    qint64 currentTime = QDateTime::currentMSecsSinceEpoch();
+    if (currentTime - lastUpdate < 100) return;
+    lastUpdate = currentTime;
+
     ui->Slider->setValue(static_cast<int>(position));
 }
 
@@ -410,6 +422,11 @@ void MainWindow::onPositionChanged(qint64 position)
 
     int index = m_lrcParser->currentIndex(position);
     if (index >= 0 && index < m_lyrics.size()) {
+        // 增量更新：只有当行号发生变化时才更新 UI
+        if (index == m_lastLrcIndex) return;
+        
+        m_lastLrcIndex = index;
+
         // 清除所有选中状态
         for (int i = 0; i < ui->lyricsListWidget->count(); ++i) {
             ui->lyricsListWidget->item(i)->setSelected(false);
@@ -420,6 +437,12 @@ void MainWindow::onPositionChanged(qint64 position)
         // 只有当用户没有手动滚动时，才自动居中
         if (!m_manualScroll) {
             ui->lyricsListWidget->scrollToItem(ui->lyricsListWidget->item(index), QAbstractItemView::PositionAtCenter);
+        }
+    } else if (index == -1 && m_lastLrcIndex != -1) {
+        // 如果位置回到开头或超出范围，清除状态
+        m_lastLrcIndex = -1;
+        for (int i = 0; i < ui->lyricsListWidget->count(); ++i) {
+            ui->lyricsListWidget->item(i)->setSelected(false);
         }
     }
 }
@@ -565,23 +588,34 @@ void MainWindow::MusicEnd()
     }
 }
 
+/** @brief 加载并缓存背景图，避免在 paintEvent 中频繁读取磁盘。 */
+void MainWindow::updateBackground()
+{
+    QSettings settings("misaka", "MusicPlayer");
+    QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
+    m_backgroundPixmap = QPixmap(bgPath);
+    if (m_backgroundPixmap.isNull()) {
+        // 如果加载失败，可以设置一个默认颜色或尝试加载默认背景
+        m_backgroundPixmap = QPixmap(":/res/background_dark.png");
+    }
+    this->update(); // 触发重绘
+}
+
 /** @brief 自定义绘制窗口的圆角背景，以避免使用 setMask 带来的锯齿问题。 */
 void MainWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
     QPainter painter(this);
-    painter.setRenderHint(QPainter::Antialiasing);
+    
+    // 只有在需要高质量抗锯齿时才开启，背景图绘制通常不需要
+    painter.setRenderHint(QPainter::SmoothPixmapTransform);
 
     QPainterPath path;
     path.addRoundedRect(rect(), 20, 20);
     painter.setClipPath(path);
 
-    QSettings settings("misaka", "MusicPlayer");
-    QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
-
-    QPixmap bg(bgPath);
-    if (!bg.isNull()) {
-        painter.drawPixmap(rect(), bg);
+    if (!m_backgroundPixmap.isNull()) {
+        painter.drawPixmap(rect(), m_backgroundPixmap);
     } else {
         painter.fillPath(path, QColor(33, 33, 41)); // Fallback color
     }
@@ -956,7 +990,7 @@ void MainWindow::showBackgroundContextMenu(const QPoint &pos)
         if (!newPath.isEmpty()) {
             QSettings settings("misaka", "MusicPlayer");
             settings.setValue("BackgroundImage", newPath);
-            this->update(); // Trigger paintEvent to redraw
+            updateBackground(); // 加载新背景并重绘
         }
     });
 

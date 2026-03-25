@@ -9,10 +9,8 @@ MarqueeLabel::MarqueeLabel(QWidget *parent, const QString &text)
     setText(text);
     setWordWrap(false);
     setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
-    // 首次更新滚动状态（如果文本已设置）
+    // 首次更新滚动状态（如果文本已设置，内部会按需启动定时器）
     updateScrollState();
-    // 启动定时器（即使当前不需要滚动，也不会做无用功，因为 m_needScroll 为 false）
-    startScroll();
 }
 
 /** @brief 设置每帧滚动像素并发射 scrollSpeedChanged。 */
@@ -20,8 +18,7 @@ void MarqueeLabel::setScrollSpeed(int pixels)
 {
     if (m_scrollSpeed != pixels) {
         m_scrollSpeed = pixels;
-        emit scrollSpeedChanged(pixels);  // 发射信号
-        // 如果速度变化时需要调整滚动行为，可在这里触发更新
+        emit scrollSpeedChanged(pixels);
     }
 }
 
@@ -31,7 +28,6 @@ void MarqueeLabel::setGap(int gap)
     if (m_gap != gap) {
         m_gap = gap;
         emit gapChanged(gap);
-        // 如果需要立即刷新显示，可调用 update()
         update();
     }
 }
@@ -43,18 +39,20 @@ void MarqueeLabel::setText(const QString &text)
     updateScrollState();
 }
 
-/** @brief 若定时器未运行则启动（30ms 间隔）。 */
+/** @brief 若定时器未运行则启动（50ms 间隔，更省电）。 */
 void MarqueeLabel::startScroll()
 {
     if (!m_timer.isActive()) {
-        m_timer.start(30, this);
+        m_timer.start(50, this);
     }
 }
 
 /** @brief 停止定时器、偏移归零并重绘。 */
 void MarqueeLabel::stopScroll()
 {
-    m_timer.stop();
+    if (m_timer.isActive()) {
+        m_timer.stop();
+    }
     m_offset = 0;
     update();
 }
@@ -78,7 +76,7 @@ void MarqueeLabel::paintEvent(QPaintEvent *event)
     int firstX = m_offset;
     int secondX = m_offset + m_textWidth + m_gap;
 
-    // 绘制两个副本（超出区域的会被自动裁剪）
+    // 绘制两个副本
     painter.drawText(firstX, textY, text());
     painter.drawText(secondX, textY, text());
 }
@@ -86,13 +84,18 @@ void MarqueeLabel::paintEvent(QPaintEvent *event)
 /** @brief 定时器到时且需要滚动时更新 m_offset，超出一周期则回绕。 */
 void MarqueeLabel::timerEvent(QTimerEvent *event)
 {
-    if (event->timerId() == m_timer.timerId() && m_needScroll) {
-        m_offset -= m_scrollSpeed;
-        int period = m_textWidth + m_gap;
-        if (m_offset < -period) {
-            m_offset += period;
+    if (event->timerId() == m_timer.timerId()) {
+        if (m_needScroll) {
+            m_offset -= m_scrollSpeed;
+            int period = m_textWidth + m_gap;
+            if (m_offset < -period) {
+                m_offset += period;
+            }
+            update();
+        } else {
+            // 安全起见，如果不再需要滚动，关闭定时器
+            stopScroll();
         }
-        update();
     }
 }
 
@@ -111,28 +114,24 @@ void MarqueeLabel::showEvent(QShowEvent *event)
     m_offset = 0;
 }
 
-/** @brief 隐藏时交给基类处理。 */
+/** @brief 隐藏时停止定时器以省电。 */
 void MarqueeLabel::hideEvent(QHideEvent *event)
 {
+    stopScroll();
     QLabel::hideEvent(event);
 }
 
-/** @brief 根据文本宽度与标签宽度更新 m_needScroll，需要时重置 m_offset 或停止绘制偏移。 */
+/** @brief 根据文本宽度与标签宽度更新 m_needScroll，并物理开启/关闭定时器。 */
 void MarqueeLabel::updateScrollState()
 {
     QFontMetrics fm(font());
     m_textWidth = fm.horizontalAdvance(text());
     bool need = (m_textWidth > width());
-    if (need != m_needScroll) {
-        m_needScroll = need;
-        if (need) {
-            // 开始滚动前重置偏移量（可选）
-            m_offset = 0;
-            // 如果定时器未运行，启动它（但 startScroll 已在构造函数中调用，所以通常已运行）
-        } else {
-            // 停止滚动并重绘为普通状态
-            m_offset = 0;
-            update();
-        }
+    
+    m_needScroll = need;
+    if (m_needScroll) {
+        startScroll();
+    } else {
+        stopScroll();
     }
 }
