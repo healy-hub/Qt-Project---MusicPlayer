@@ -40,8 +40,6 @@ PlayerController::PlayerController(QObject *parent)
 {
     m_player->setAudioOutput(m_audioOutput);
     m_audioOutput->setDevice(QMediaDevices::defaultAudioOutput()); // 显式初始化为默认音频输出设备
-    m_audioOutput->setVolume(1.0); // 显式设置初始音量为 100%
-    m_audioOutput->setMuted(false); // 确保没有被静音
 
     connect(m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error error, const QString &errorString) {
         qDebug() << "MediaPlayer Error:" << error << errorString;
@@ -54,6 +52,33 @@ PlayerController::PlayerController(QObject *parent)
     QMediaDevices *devices = new QMediaDevices(this);
     connect(devices, &QMediaDevices::audioOutputsChanged, this, [this]() {
         m_audioOutput->setDevice(QMediaDevices::defaultAudioOutput());
+    });
+
+    // 初始化解析池
+    m_pool = new MediaPlayerPool(4, this);
+
+    // 连接任务完成信号：更新播放列表对应项
+    connect(m_pool, &MediaPlayerPool::taskFinished, this, [this](int taskId, const QPixmap &cover, const QString &title, const QString &artist) {
+        if (!m_musicplaylist) return;
+        if (taskId >= 0 && taskId < m_musicplaylist->Getsize()) {
+            QPixmap finalCover = cover;
+            if (finalCover.isNull()) {
+                finalCover = QPixmap(":/res/misaka.png");
+            }
+            m_musicplaylist->updateItem(taskId, finalCover, title, artist);
+
+            const QUrl url = m_musicplaylist->Geturl(taskId);
+            if (url.isValid()) {
+                m_store.load();
+                m_store.markMetadata(url.toString(), finalCover, title, artist);
+                m_store.saveAtomic();
+            }
+        }
+    });
+
+    // 连接任务失败信号
+    connect(m_pool, &MediaPlayerPool::taskFailed, this, [](int taskId, const QString &error) {
+        qDebug() << "Metadata Task Failed for ID" << taskId << ":" << error;
     });
 
     // 部分音频在 play() 后会停留在 0ms 不前进
@@ -82,48 +107,6 @@ PlayerController::PlayerController(QObject *parent)
 
 /**
  * @brief 初始化媒体元数据解析对象池
- *
- * - 创建 MediaPlayerPool，并限制最大并发数（当前为 4）
- * - 将 taskFinished / taskFailed 信号转发为对 MusicPlaylist 的 UI 更新与调试输出
- */
-void PlayerController::InitPool()
-{
-    // 创建对象池（最大并发数设为4）
-    m_pool = new MediaPlayerPool(4, this);
-
-    // 连接任务完成信号：更新播放列表对应项
-    connect(m_pool, &MediaPlayerPool::taskFinished, this, [this](int taskId, const QPixmap &cover, const QString &title, const QString &artist) {
-        if (!m_musicplaylist) return;
-        if (taskId >= 0 && taskId < m_musicplaylist->Getsize()) {
-            QPixmap finalCover = cover;
-            if (finalCover.isNull()) {
-                finalCover = QPixmap(":/res/misaka.png");
-            }
-            m_musicplaylist->updateItem(taskId, finalCover, title, artist);
-
-            const QUrl url = m_musicplaylist->Geturl(taskId);
-            if (url.isValid()) {
-                m_store.load();
-                m_store.markMetadata(url.toString(), finalCover, title, artist);
-                m_store.saveAtomic();
-            }
-        }
-    });
-
-    connect(m_pool, &MediaPlayerPool::taskFailed, this, [this](int taskId, const QString &error) {
-        Q_UNUSED(taskId);
-        qDebug() << "任务失败:" << error;
-    });
-}
-
-/**
- * @brief 初始化播放列表，并与外部的 MusicPlaylist 视图绑定
- *
- * 该函数会：
- *  - 记录外部传入的 MusicPlaylist 指针（不负责释放）
- *  - 确保 MediaPlayerPool 已经初始化
- *  - 扫描应用目录下的 MusicList 文件夹，以支持的后缀过滤音频文件
- *  - 向 MusicPlaylist 追加 SongUnit 占位项，并为每个文件提交一个元数据解析任务
  *  - 在存在歌曲时，为 QMediaPlayer 设置初始播放源和音量
  */
 void PlayerController::InitPlayList(MusicPlaylist *playlist)
@@ -132,10 +115,6 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
     if (!m_musicplaylist) {
         emit playlistAvailabilityChanged(false);
         return;
-    }
-
-    if (!m_pool) {
-        InitPool();
     }
 
     m_musicplaylist->clearSongs();
@@ -258,7 +237,6 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
 void PlayerController::AddLocalFiles(const QStringList& filePaths)
 {
     if (!m_musicplaylist) return;
-    if (!m_pool) InitPool();
 
     const bool wasEmpty = m_musicplaylist->isempty();
     const QPixmap defaultCover(":/res/misaka.png");

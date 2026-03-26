@@ -121,35 +121,8 @@ MusicPlaylist QWidget#scrollAreaWidgetContents {
     background: transparent;
 }
 
-/* 歌曲单元样式 */
-SongUnit {
-    background-color: rgba(255, 255, 255, 6);
-    border-bottom: 1px solid rgba(255, 255, 255, 10);
-}
-
-SongUnit:hover {
-    background-color: rgba(255, 255, 255, 12);
-}
-
-/* SongUnit 内部文字（暗色主题） */
-SongUnit QLabel#namelabel {
-    color: rgba(255, 255, 255, 230);
-    background: transparent;
-}
-
-SongUnit QLabel#artistlabel {
-    color: rgba(255, 255, 255, 160);
-    background: transparent;
-}
-
 /* 鼠标进入 SongUnit 时，同时改变内部两个 label 的样式 */
-SongUnit:hover QLabel#namelabel {
-    color: rgba(255, 255, 255, 255);
-}
-
-SongUnit:hover QLabel#artistlabel {
-    color: rgba(255, 255, 255, 200);
-}
+/* SongUnit 样式已被 Delegate 替换，以下旧样式已废弃 */
 
 /* 水平 QSlider 进度条（修复圆形滑块） */
 QSlider {

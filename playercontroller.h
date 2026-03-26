@@ -61,7 +61,6 @@ private:
     int m_shuffleIndex;
     int m_playToken;
 
-    void InitPool();                  // 创建 MediaPlayerPool 并连接 taskFinished/taskFailed
     void UpdateRandomArray();        // 生成随机播放顺序（Fisher-Yates），仅 Loop_Play 使用
     bool ensureValidPlayIndex();      // 将 m_playnum 限制在 [0, size)，空列表返回 false
 };

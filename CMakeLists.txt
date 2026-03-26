@@ -10,8 +10,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # 查找 Qt 组件
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia)
+find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets Multimedia Concurrent)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Multimedia Concurrent)
+
+# 查找 TagLib (使用 pkg-config)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(TAGLIB REQUIRED taglib)
 
 # 将所有源文件列出
 set(PROJECT_SOURCES
@@ -48,10 +52,15 @@ endif()
 target_link_libraries(MusicPlayer PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Multimedia
+    Qt${QT_VERSION_MAJOR}::Concurrent
+    ${TAGLIB_LIBRARIES}
 )
 
 # 添加当前源目录到包含路径
-target_include_directories(MusicPlayer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(MusicPlayer PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${TAGLIB_INCLUDE_DIRS}
+)
 
 # ========== 新增：根据构建类型设置编译定义 ==========
 # Release 模式下禁用 qDebug / qWarning 输出
