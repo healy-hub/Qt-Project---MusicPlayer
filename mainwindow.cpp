@@ -90,7 +90,10 @@ void MainWindow::InitWindow()
     {
         QSettings settings("misaka", "MusicPlayer");
         QString coverPath = settings.value("DefaultCover", ":/res/misaka.png").toString();
-        ui->imagelabel->setPixmap(QPixmap(coverPath));
+        QPixmap pix(coverPath);
+        if (!pix.isNull()) {
+            ui->imagelabel->setPixmap(pix.scaled(300, 300, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
     }
 
     // 设置右键菜单策略
@@ -597,7 +600,10 @@ void MainWindow::UpdateMetadata()
     if(image_flag) {
         QSettings settings("misaka", "MusicPlayer");
         QString coverPath = settings.value("DefaultCover", ":/res/misaka.png").toString();
-        ui->imagelabel->setPixmap(QPixmap(coverPath));
+        QPixmap pix(coverPath);
+        if (!pix.isNull()) {
+            ui->imagelabel->setPixmap(pix.scaled(300, 300, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        }
     }
 
     // 设置歌词：根据当前播放索引加载对应 .lrc 文件
@@ -632,22 +638,25 @@ void MainWindow::MusicEnd()
     }
 }
 
-/** @brief 加载并缓存背景图，并生成当前尺寸的拉伸图。加载后清除原图以节省内存。 */
+/** @brief 加载并缓存背景图，并生成当前尺寸的拉伸图。采用 RGB32 格式且加载后释放原图。 */
 void MainWindow::updateBackground()
 {
     QSettings settings("misaka", "MusicPlayer");
     QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
-    QPixmap original(bgPath);
+    
+    // 使用 QImage 加载并缩放，以节省中间过程内存并方便转换格式
+    QImage original(bgPath);
     if (original.isNull()) {
-        original = QPixmap(":/res/background_dark.png");
+        original = QImage(":/res/background_dark.png");
     }
     
-    // 生成当前窗口尺寸的拉伸图
     if (!original.isNull()) {
-        m_cachedBackgroundPixmap = original.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        // 缩放到窗口大小，并转换为不带 Alpha 通道的 RGB32 格式（每个像素省 1 字节或优化对齐）
+        QImage scaled = original.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        m_cachedBackgroundPixmap = QPixmap::fromImage(scaled.convertToFormat(QImage::Format_RGB32));
     }
     
-    QPixmapCache::clear(); // 清理全局图片缓存，强制释放原始大图资源
+    QPixmapCache::clear(); // 清理全局图片缓存
     this->update(); // 触发重绘
 }
 

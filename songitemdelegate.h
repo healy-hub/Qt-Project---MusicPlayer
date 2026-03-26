@@ -13,7 +13,7 @@ class SongItemDelegate : public QStyledItemDelegate
     Q_OBJECT
 public:
     explicit SongItemDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
-        m_coverCache.setMaxCost(100); // 缓存最近使用的 100 张封面缩略图
+        m_coverCache.setMaxCost(4 * 1024 * 1024); // 限制缩略图内存占用约为 4MiB
     }
 
     enum DataRole {
@@ -64,7 +64,8 @@ public:
                         pix = pix.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                     }
                     cachedPix = new QPixmap(pix);
-                    m_coverCache.insert(coverPath, cachedPix);
+                    // 传入字节大小作为成本 (width * height * 4)
+                    m_coverCache.insert(coverPath, cachedPix, cachedPix->width() * cachedPix->height() * 4);
                 }
             }
         }
