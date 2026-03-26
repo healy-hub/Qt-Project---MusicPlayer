@@ -8,10 +8,21 @@
 #include <QLabel>
 #include <QStandardItemModel>
 #include <QListView>
+#include <QSortFilterProxyModel>
 
 namespace Ui {
 class MusicPlaylist;
 }
+
+class PlaylistFilterProxyModel : public QSortFilterProxyModel
+{
+    Q_OBJECT
+public:
+    explicit PlaylistFilterProxyModel(QObject *parent = nullptr) : QSortFilterProxyModel(parent) {}
+
+protected:
+    bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+};
 
 class MusicPlaylist : public QWidget
 {
@@ -38,9 +49,13 @@ public:
     void hideAnimated();
     bool isAnimating() const;
 
+private slots:
+    void onSearchTextChanged(const QString &text);
+
 private:
     Ui::MusicPlaylist *ui;
     QStandardItemModel *m_model;
+    PlaylistFilterProxyModel *m_proxyModel;
     class SongItemDelegate *m_delegate;
 
     QLabel *m_emptyLabel{nullptr};

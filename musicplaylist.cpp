@@ -9,6 +9,28 @@
 #include <QResizeEvent>
 #include <QStandardItem>
 
+bool PlaylistFilterProxyModel::filterAcceptsRow(int source_row, const QModelIndex &source_parent) const
+{
+    // 获取源 Model 中的数据
+    QModelIndex index = sourceModel()->index(source_row, 0, source_parent);
+    
+    // 显式从源模型获取 Title (DisplayRole) 和 Artist
+    QString name = sourceModel()->data(index, Qt::DisplayRole).toString();
+    QString artist = sourceModel()->data(index, SongItemDelegate::ArtistRole).toString();
+    
+    // 获取当前的正则表达式
+    QRegularExpression re = filterRegularExpression();
+    QString pattern = re.pattern();
+    
+    // 如果没有搜索内容，直接显示
+    if (pattern.isEmpty()) {
+        return true;
+    }
+    
+    // 使用正则表达式进行匹配（这样支持大小写不敏感等设置）
+    return name.contains(re) || artist.contains(re);
+}
+
 /** @brief 构造：setupUi、QListView 属性、Model 与 Delegate 初始化、动画、空列表占位。 */
 MusicPlaylist::MusicPlaylist(QWidget *parent)
     : QWidget(parent)
@@ -16,11 +38,13 @@ MusicPlaylist::MusicPlaylist(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // 1. 初始化 Model 和 Delegate
+    // 1. 初始化 Model, ProxyModel 和 Delegate
     m_model = new QStandardItemModel(this);
+    m_proxyModel = new PlaylistFilterProxyModel(this);
+    m_proxyModel->setSourceModel(m_model);
     m_delegate = new SongItemDelegate(this);
     
-    ui->listView->setModel(m_model);
+    ui->listView->setModel(m_proxyModel); // View 绑定 ProxyModel
     ui->listView->setItemDelegate(m_delegate);
     
     // 允许鼠标追踪以便 Delegate 接收 Hover 状态
@@ -31,10 +55,14 @@ MusicPlaylist::MusicPlaylist(QWidget *parent)
     ui->listView->setAttribute(Qt::WA_TranslucentBackground);
     ui->listView->viewport()->setAttribute(Qt::WA_TranslucentBackground);
 
-    // 连接点击信号，发射 id（行号）
-    connect(ui->listView, &QListView::clicked, this, [this](const QModelIndex &index){
-        if (index.isValid()) {
-            emit ChooseMusicpass(index.row());
+    // 连接搜索框
+    connect(ui->searchLineEdit, &QLineEdit::textChanged, this, &MusicPlaylist::onSearchTextChanged);
+
+    // 连接点击信号，发射实际的 source id（行号）
+    connect(ui->listView, &QListView::clicked, this, [this](const QModelIndex &proxyIndex){
+        if (proxyIndex.isValid()) {
+            QModelIndex sourceIndex = m_proxyModel->mapToSource(proxyIndex);
+            emit ChooseMusicpass(sourceIndex.row());
         }
     });
 
@@ -260,6 +288,13 @@ void MusicPlaylist::updateEmptyStateUi()
     m_emptyLabel->setVisible(empty);
     m_emptyLabel->raise();
     m_emptyLabel->setGeometry(rect());
+}
+
+void MusicPlaylist::onSearchTextChanged(const QString &text)
+{
+    // 创建一个忽略大小写的正则表达式
+    QRegularExpression re(QRegularExpression::escape(text), QRegularExpression::CaseInsensitiveOption);
+    m_proxyModel->setFilterRegularExpression(re);
 }
 
 void MusicPlaylist::resizeEvent(QResizeEvent *event)

@@ -30,6 +30,34 @@
     <number>0</number>
    </property>
    <item>
+    <widget class="QLineEdit" name="searchLineEdit">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>40</height>
+      </size>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QLineEdit {
+    background-color: rgba(255, 255, 255, 10);
+    border: 1px solid rgba(255, 255, 255, 20);
+    border-radius: 8px;
+    padding: 0 10px;
+    color: white;
+    font-size: 14px;
+    margin: 5px;
+}
+QLineEdit:focus {
+    border: 1px solid rgba(255, 255, 255, 50);
+    background-color: rgba(255, 255, 255, 15);
+}</string>
+     </property>
+     <property name="placeholderText">
+      <string>搜索歌曲或歌手...</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QListView" name="listView">
      <property name="styleSheet">
       <string notr="true">QListView {
