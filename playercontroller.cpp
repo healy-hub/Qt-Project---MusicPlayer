@@ -156,7 +156,7 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
             QString artist = t.artist;
             if (artist.isEmpty()) artist = "未知艺术家";
 
-            m_musicplaylist->AppendMusic(cover, url, title, artist);
+            m_musicplaylist->AppendMusic(cover, url, title, artist, t.isFavorite);
             
             // 如果缓存声明有元数据但封面加载失败（比如本地缓存被手动删了），重新加入解析队列补全
             if (!coverLoaded && m_pool) {
@@ -167,7 +167,7 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
             QString placeholderTitle = url.fileName();
             if (placeholderTitle.isEmpty()) placeholderTitle = "加载中";
             
-            m_musicplaylist->AppendMusic(defaultCover, url, placeholderTitle, "加载中");
+            m_musicplaylist->AppendMusic(defaultCover, url, placeholderTitle, "加载中", t.isFavorite);
             if (m_pool) {
                 m_pool->addTask(url, index);
             }
@@ -492,6 +492,24 @@ void PlayerController::OnChooseMusic(int id)
     }
     // 手动点击列表中某项，总是希望立即开始播放
     PlaySong(true);
+}
+
+void PlayerController::OnFavoriteToggle(int id)
+{
+    if (!m_musicplaylist || id < 0 || id >= m_musicplaylist->Getsize()) return;
+
+    QUrl url = m_musicplaylist->Geturl(id);
+    QString urlStr = url.toString();
+
+    m_store.load();
+    bool currentFav = m_store.isFavorite(urlStr);
+    bool newFav = !currentFav;
+    m_store.setFavorite(urlStr, newFav);
+    m_store.saveAtomic();
+
+    // 更新 UI (假设封面和标题艺术家不变)
+    // 注意：这里可能需要从 store 获取完整的 track 信息来更新，但目前简化处理
+    m_musicplaylist->updateItem(id, QPixmap(), QString(), QString(), newFav);
 }
 
 /** @brief 目录内容变化槽：自动感知并添加新歌。 */

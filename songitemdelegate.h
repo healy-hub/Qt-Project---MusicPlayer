@@ -3,6 +3,7 @@
 
 #include <QStyledItemDelegate>
 #include <QPainter>
+#include <QPainterPath>
 #include <QApplication>
 
 class SongItemDelegate : public QStyledItemDelegate
@@ -14,7 +15,8 @@ public:
     enum DataRole {
         IdRole = Qt::UserRole + 1,
         UrlRole = Qt::UserRole + 2,
-        ArtistRole = Qt::UserRole + 3
+        ArtistRole = Qt::UserRole + 3,
+        FavoriteRole = Qt::UserRole + 4
     };
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
@@ -76,6 +78,32 @@ public:
         artistRect.setTop(nameRect.bottom() + 2);
         artistRect.setHeight(20);
         painter->drawText(artistRect, Qt::AlignLeft | Qt::AlignVCenter, painter->fontMetrics().elidedText(artist, Qt::ElideRight, textWidth));
+
+        // 3. 绘制收藏“心形”图标 (右侧)
+        bool isFav = index.data(FavoriteRole).toBool();
+        int favSize = 20;
+        QRect favRect(option.rect.right() - margin - favSize - 10, option.rect.top() + (option.rect.height() - favSize) / 2, favSize, favSize);
+        
+        painter->setRenderHint(QPainter::Antialiasing);
+        QPainterPath path;
+        qreal x = favRect.x();
+        qreal y = favRect.y();
+        qreal w = favRect.width();
+        qreal h = favRect.height();
+
+        // 优化心形：由底部顶点向上绘制两组对称的贝塞尔曲线
+        path.moveTo(x + w / 2, y + h * 0.9);
+        // 左半边
+        path.cubicTo(x - w * 0.1, y + h * 0.5, x + w * 0.05, y - h * 0.1, x + w / 2, y + h * 0.3);
+        // 右半边 (对称)
+        path.cubicTo(x + w * 0.95, y - h * 0.1, x + w * 1.1, y + h * 0.5, x + w / 2, y + h * 0.9);
+
+        if (isFav) {
+            painter->fillPath(path, QColor(255, 64, 64)); // 实心红
+        } else {
+            painter->setPen(QPen(QColor(255, 255, 255, 100), 1.5)); // 半透明白框
+            painter->drawPath(path);
+        }
 
         painter->restore();
     }

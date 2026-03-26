@@ -19,9 +19,15 @@ class PlaylistFilterProxyModel : public QSortFilterProxyModel
     Q_OBJECT
 public:
     explicit PlaylistFilterProxyModel(QObject *parent = nullptr) : QSortFilterProxyModel(parent) {}
+    
+    void setFilterType(int type) { m_filterType = type; invalidate(); }
+    int filterType() const { return m_filterType; }
 
 protected:
     bool filterAcceptsRow(int source_row, const QModelIndex &source_parent) const override;
+
+private:
+    int m_filterType{0}; // 0: All, 1: Favorites
 };
 
 class MusicPlaylist : public QWidget
@@ -29,18 +35,19 @@ class MusicPlaylist : public QWidget
     Q_OBJECT
 
 public:
+    enum class PlaylistType { All = 0, Favorites = 1, Custom = 2 };
+
     explicit MusicPlaylist(QWidget *parent = nullptr);
     ~MusicPlaylist();
 
-    // 更新后的接口
-    void AppendMusic(QPixmap pix, QUrl url, QString name, QString artist);
-    int appendSong(const QPixmap& pix, const QUrl& url, const QString& name, const QString& artist);
+    void AppendMusic(QPixmap pix, QUrl url, QString name, QString artist, bool isFav = false);
+    int appendSong(const QPixmap& pix, const QUrl& url, const QString& name, const QString& artist, bool isFav = false);
     bool removeSongAt(int index);
     void clearSongs();
     bool isempty();
     QUrl Geturl(const int n);
     int Getsize();
-    void updateItem(int idx, QPixmap image, QString name, QString artist);
+    void updateItem(int idx, QPixmap image, QString name, QString artist, bool isFav = false);
     
     bool hasSongs() const { return m_model->rowCount() > 0; }
     void setTargetPos(const QPoint& p);
@@ -51,6 +58,9 @@ public:
 
 private slots:
     void onSearchTextChanged(const QString &text);
+    void onListViewClicked(const QModelIndex &proxyIndex);
+    void onListViewDoubleClicked(const QModelIndex &proxyIndex);
+    void onSidebarRowChanged(int row);
 
 private:
     Ui::MusicPlaylist *ui;
@@ -76,6 +86,8 @@ protected:
 
 signals:
     void ChooseMusicpass(int id);
+    void FavoriteToggleRequested(int id);
+    void PlaylistChanged(int type); // 0: All, 1: Favorites
     void songsChanged(int size);
     void hasSongsChanged(bool hasSongs);
 };

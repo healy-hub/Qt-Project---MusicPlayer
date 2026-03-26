@@ -16,6 +16,12 @@ public:
         QString title;
         QString artist;
         QString coverPath;  // relative path, e.g. Metadata/<key>.png
+        bool isFavorite{false}; // 是否收藏
+    };
+
+    struct Playlist {
+        QString name;
+        QStringList trackUrls;
     };
 
     PlaylistStore();
@@ -34,9 +40,21 @@ public:
     bool saveAtomic() const;     // writes internal tracks list to disk
 
     const QVector<Track>& tracks() const { return m_tracks; }
+    const QVector<Playlist>& playlists() const { return m_playlists; }
 
     // Insert if missing; returns index.
     int upsertTrack(const QString& urlString);
+    
+    // 设置收藏状态
+    void setFavorite(const QString& urlString, bool favorite);
+    bool isFavorite(const QString& urlString) const;
+
+    // 管理自定义列表
+    void addPlaylist(const QString& name);
+    void removePlaylist(const QString& name);
+    void addTrackToPlaylist(const QString& playlistName, const QString& urlString);
+    void removeTrackFromPlaylist(const QString& playlistName, const QString& urlString);
+    QStringList getPlaylistTracks(const QString& playlistName) const;
 
     // Mark metadata as loaded; caches cover (png) and updates track fields.
     bool markMetadata(const QString& urlString, const QPixmap& cover, const QString& title, const QString& artist);
@@ -46,9 +64,11 @@ public:
 private:
     QString m_appDir;
     QVector<Track> m_tracks;
+    QVector<Playlist> m_playlists;
 
     int findIndexByKey(const QString& key) const;
     int findIndexByUrl(const QString& urlString) const;
+    int findPlaylistIndex(const QString& name) const;
 };
 
 #endif // PLAYLISTSTORE_H

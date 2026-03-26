@@ -43,6 +43,7 @@ signals:
 
 public slots:
     void OnChooseMusic(int id);                               // 由 MusicPlaylist 选中信号触发，切换并播放
+    void OnFavoriteToggle(int id);                            // 处理收藏状态切换
     void onDirectoryChanged(const QString &path);             // 目录变化处理
 
 private:

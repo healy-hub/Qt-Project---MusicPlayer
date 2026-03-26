@@ -107,6 +107,15 @@ MusicPlaylist {
     border-radius: 10px;
 }
 
+/* 侧边栏样式补全，确保其背景与整体融合 */
+QListWidget#sidebar {
+    background-color: rgba(0, 0, 0, 30);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 10);
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
 /* 让 scrollArea 不遮挡 MusicPlaylist 背景 */
 MusicPlaylist QScrollArea {
     background: transparent;

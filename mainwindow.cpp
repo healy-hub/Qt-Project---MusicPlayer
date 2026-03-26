@@ -220,8 +220,8 @@ void MainWindow::InitButtons()
     connect(ui->playButton, &QPushButton::clicked, this, [this](){
         if (!m_playerController) return;
         QMediaPlayer *player = m_playerController->GetPlayer();
-        if (player->isPlaying()) { player->pause(); InitButtonIcon(ui->playButton, ":/res/play.png"); }
-        else { player->play(); InitButtonIcon(ui->playButton, ":/res/stop.png"); }
+        if (player->isPlaying()) player->pause();
+        else player->play();
     });
     connect(ui->listButton, &QPushButton::clicked, this, [this](){ togglePlaylist(); });
     connect(ui->minimizeButton, &QPushButton::clicked, this, [this](){ showMinimized(); });
@@ -292,10 +292,11 @@ void MainWindow::UpdateMusicListPosition()
 {
     int window_width = this->width();
     int window_height = this->height();
-    int target_x = window_width - 390;
+    int target_x = window_width - 510;
     int target_h = window_height - 300;
     const QPoint targetPos(target_x, 100);
     if (m_musicplaylist) {
+        m_musicplaylist->setFixedWidth(500);
         m_musicplaylist->setFixedHeight(target_h);
         m_musicplaylist->setTargetPos(targetPos);
     }
@@ -355,6 +356,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // 使用音乐播放列表选择播放音乐
     connect(m_musicplaylist, &MusicPlaylist::ChooseMusicpass, m_playerController, &PlayerController::OnChooseMusic);
+    connect(m_musicplaylist, &MusicPlaylist::FavoriteToggleRequested, m_playerController, &PlayerController::OnFavoriteToggle);
 
     // 初始化一次空/非空状态（避免错过 InitPlayList 内部 emit）
     const bool hasSongs = (m_musicplaylist && !m_musicplaylist->isempty());
@@ -605,10 +607,14 @@ void MainWindow::UpdateMetadata()
     }
 }
 
-/** 播放状态变化（预留，可按需更新 UI）。 */
+/** 播放状态变化：根据状态同步主界面播放按钮的图标。 */
 void MainWindow::StateChange(QMediaPlayer::PlaybackState state)
 {
-    Q_UNUSED(state);
+    if (state == QMediaPlayer::PlayingState) {
+        InitButtonIcon(ui->playButton, ":/res/stop.png");
+    } else {
+        InitButtonIcon(ui->playButton, ":/res/play.png");
+    }
 }
 
 /** @brief 当前曲目结束，通知 PlayerController 切下一首。 */
@@ -844,13 +850,8 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     if (event->key() == Qt::Key_Space) {
         if (m_playerController) {
             QMediaPlayer *player = m_playerController->GetPlayer();
-            if (player->isPlaying()) {
-                player->pause();
-                InitButtonIcon(ui->playButton, ":/res/play.png");
-            } else if (player->playbackState() == QMediaPlayer::PausedState || player->playbackState() == QMediaPlayer::StoppedState) {
-                player->play();
-                InitButtonIcon(ui->playButton, ":/res/stop.png");
-            }
+            if (player->isPlaying()) player->pause();
+            else player->play();
         }
         event->accept();
         return;

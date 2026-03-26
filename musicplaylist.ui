@@ -6,14 +6,14 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>400</width>
-    <height>300</height>
+    <width>500</width>
+    <height>400</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QHBoxLayout" name="horizontalLayout">
    <property name="spacing">
     <number>0</number>
    </property>
@@ -30,15 +30,59 @@
     <number>0</number>
    </property>
    <item>
-    <widget class="QLineEdit" name="searchLineEdit">
+    <widget class="QListWidget" name="sidebar">
      <property name="minimumSize">
       <size>
-       <width>0</width>
-       <height>40</height>
+       <width>120</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>120</width>
+       <height>16777215</height>
       </size>
      </property>
      <property name="styleSheet">
-      <string notr="true">QLineEdit {
+      <string notr="true">QListWidget {
+    background-color: rgba(0, 0, 0, 40);
+    border: none;
+    border-right: 1px solid rgba(255, 255, 255, 10);
+    outline: none;
+    padding-top: 10px;
+}
+QListWidget::item {
+    color: rgba(255, 255, 255, 180);
+    height: 40px;
+    padding-left: 15px;
+    border: none;
+}
+QListWidget::item:selected {
+    background-color: rgba(255, 255, 255, 20);
+    color: white;
+    border-left: 3px solid #FF4040;
+}
+QListWidget::item:hover {
+    background-color: rgba(255, 255, 255, 10);
+}</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <property name="spacing">
+      <number>0</number>
+     </property>
+     <item>
+      <widget class="QLineEdit" name="searchLineEdit">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>40</height>
+        </size>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QLineEdit {
     background-color: rgba(255, 255, 255, 10);
     border: 1px solid rgba(255, 255, 255, 20);
     border-radius: 8px;
@@ -51,35 +95,37 @@ QLineEdit:focus {
     border: 1px solid rgba(255, 255, 255, 50);
     background-color: rgba(255, 255, 255, 15);
 }</string>
-     </property>
-     <property name="placeholderText">
-      <string>搜索歌曲或歌手...</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QListView" name="listView">
-     <property name="styleSheet">
-      <string notr="true">QListView {
+       </property>
+       <property name="placeholderText">
+        <string>搜索歌曲或歌手...</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QListView" name="listView">
+       <property name="styleSheet">
+        <string notr="true">QListView {
     background: transparent;
     border: none;
     outline: none;
 }
 </string>
-     </property>
-     <property name="verticalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="horizontalScrollBarPolicy">
-      <enum>Qt::ScrollBarAlwaysOff</enum>
-     </property>
-     <property name="selectionMode">
-      <enum>QAbstractItemView::SingleSelection</enum>
-     </property>
-     <property name="uniformItemSizes">
-      <bool>true</bool>
-     </property>
-    </widget>
+       </property>
+       <property name="verticalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::SingleSelection</enum>
+       </property>
+       <property name="uniformItemSizes">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
