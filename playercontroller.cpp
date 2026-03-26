@@ -58,7 +58,7 @@ PlayerController::PlayerController(QObject *parent)
     m_pool = new MediaPlayerPool(4, this);
 
     // 连接任务完成信号：更新播放列表对应项
-    connect(m_pool, &MediaPlayerPool::taskFinished, this, [this](int taskId, const QPixmap &cover, const QString &title, const QString &artist) {
+    connect(m_pool, &MediaPlayerPool::taskFinished, this, [this](int taskId, const QImage &cover, const QString &title, const QString &artist) {
         if (!m_musicplaylist) return;
         if (taskId >= 0 && taskId < m_musicplaylist->Getsize()) {
             const QUrl url = m_musicplaylist->Geturl(taskId);

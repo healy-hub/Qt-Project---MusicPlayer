@@ -258,7 +258,7 @@ QStringList PlaylistStore::getPlaylistTracks(const QString& playlistName) const
     return (idx >= 0) ? m_playlists[idx].trackUrls : QStringList{};
 }
 
-bool PlaylistStore::markMetadata(const QString& urlString, const QPixmap& cover, const QString& title, const QString& artist)
+bool PlaylistStore::markMetadata(const QString& urlString, const QImage& cover, const QString& title, const QString& artist)
 {
     const int idx = upsertTrack(urlString);
     if (idx < 0) return false;
@@ -273,7 +273,7 @@ bool PlaylistStore::markMetadata(const QString& urlString, const QPixmap& cover,
     t.coverPath = coverRelPathForKey(t.key);
 
     if (!cover.isNull()) {
-        QPixmap finalCover = cover;
+        QImage finalCover = cover;
         if (finalCover.width() > 200 || finalCover.height() > 200) {
             finalCover = finalCover.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         }

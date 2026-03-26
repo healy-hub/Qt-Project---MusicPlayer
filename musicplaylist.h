@@ -56,6 +56,7 @@ public:
     void clear() {
         beginResetModel();
         m_songs.clear();
+        m_songs.squeeze();
         endResetModel();
     }
 

@@ -58,7 +58,7 @@ void MediaPlayerPool::start()
                     res.artist = QString::fromStdString(tag->artist().to8Bit(true));
                     
                     // 提取封面
-                    QPixmap cover;
+                    QImage cover;
                     std::string suffix = QFileInfo(filePath).suffix().toLower().toStdString();
                     
                     if (suffix == "mp3") {
@@ -78,7 +78,7 @@ void MediaPlayerPool::start()
                                         reader.setScaledSize(imgSize);
                                     }
                                     QImage image = reader.read();
-                                    if (!image.isNull()) cover = QPixmap::fromImage(image);
+                                    if (!image.isNull()) cover = image;
                                 }
                             }
                         }
@@ -98,7 +98,7 @@ void MediaPlayerPool::start()
                                     reader.setScaledSize(imgSize);
                                 }
                                 QImage image = reader.read();
-                                if (!image.isNull()) cover = QPixmap::fromImage(image);
+                                if (!image.isNull()) cover = image;
                             }
                         }
                     }

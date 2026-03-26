@@ -69,11 +69,9 @@ private:
     const int m_resizeBorderWidth = 5;
 
     LrcParser *m_lrcParser;
-    QVector<LrcLine> m_lyrics;
     QTimer *m_wheelTimer;
     bool m_manualScroll;
     int m_lastLrcIndex;                                   // 记录上一行歌词索引，避免重复刷新
-    QPixmap m_backgroundPixmap;                           // 缓存背景图片
     QPixmap m_cachedBackgroundPixmap;                     // 缓存拉伸后的背景图片
     void updateBackground();                              // 加载并缓存背景图
 

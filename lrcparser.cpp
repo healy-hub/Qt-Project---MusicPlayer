@@ -13,8 +13,9 @@ LrcParser::LrcParser(QObject *parent) : QObject(parent)
 /** @brief 解析 LRC 文件：多编码尝试、正则提取 [mm:ss.xx] 与歌词、按时间排序存入 m_lyrics，同时间多行合并。成功返回 true。 */
 bool LrcParser::parseFile(const QString &filePath)
 {
-    // 清空旧的歌词数据
+    // 清空旧的歌词数据并释放多余预留空间
     m_lyrics.clear();
+    m_lyrics.squeeze();
 
     // 打开文件（只读模式）
     QFile file(filePath);

@@ -27,6 +27,7 @@
 #include <QCloseEvent>
 #include <QMessageBox>
 #include <QCheckBox>
+#include <QPixmapCache>
 // #include "songunit.h"  <-- 这行已删除
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
@@ -122,10 +123,7 @@ void MainWindow::InitWindow()
     updateBackground();  // 初始加载背景图
     InitTrayIcon();      // 初始化系统托盘
 
-    m_moremenuwindow = new MoreMenu(this);
-    m_moremenuwindow->hide();
-    connect(m_moremenuwindow, &MoreMenu::addMusicClicked, this, &MainWindow::onAddMusicFromMoreMenu);
-    connect(m_moremenuwindow, &MoreMenu::setMusicDirClicked, this, &MainWindow::onSetMusicDirClicked);
+    m_moremenuwindow = nullptr;
 
     // 初始化窗口调整大小相关变量
     m_isResizing = false;
@@ -411,12 +409,12 @@ void MainWindow::loadLyrics(const QString &musicFilePath)
     QString lrcPath = info.absolutePath() + "/" + info.completeBaseName() + ".lrc";
 
     bool ok = m_lrcParser->parseFile(lrcPath);
-    m_lyrics = m_lrcParser->lyrics();   // 同步歌词数据
+    const auto &lyrics = m_lrcParser->lyrics();
 
     ui->lyricsListWidget->clear();
-    if (ok && !m_lyrics.isEmpty()) {
+    if (ok && !lyrics.isEmpty()) {
         // 有歌词：填充真实歌词行
-        for (const auto &line : m_lyrics) {
+        for (const auto &line : lyrics) {
             ui->lyricsListWidget->addItem(line.text);
         }
         // 添加空白行，便于最后几行居中
@@ -428,7 +426,7 @@ void MainWindow::loadLyrics(const QString &musicFilePath)
         if (m_playerController) {
             qint64 pos = m_playerController->GetPlayer()->position();
             int idx = m_lrcParser->currentIndex(pos);
-            if (idx >= 0 && idx < m_lyrics.size()) {
+            if (idx >= 0 && idx < lyrics.size()) {
                 ui->lyricsListWidget->scrollToItem(ui->lyricsListWidget->item(idx), QAbstractItemView::PositionAtCenter);
             }
         }
@@ -451,10 +449,11 @@ void MainWindow::loadLyrics(const QString &musicFilePath)
 /** @brief 槽：播放位置变化时高亮对应歌词行，非手动滚动时自动居中。 */
 void MainWindow::onPositionChanged(qint64 position)
 {
-    if (m_lyrics.isEmpty()) return;
+    const auto &lyrics = m_lrcParser->lyrics();
+    if (lyrics.isEmpty()) return;
 
     int index = m_lrcParser->currentIndex(position);
-    if (index >= 0 && index < m_lyrics.size()) {
+    if (index >= 0 && index < lyrics.size()) {
         // 增量更新：只有当行号发生变化时才更新 UI
         if (index == m_lastLrcIndex) return;
         
@@ -483,9 +482,10 @@ void MainWindow::onPositionChanged(qint64 position)
 /** @brief 槽：点击某行歌词时跳转到对应时间并短暂忽略 positionChanged，居中该行。 */
 void MainWindow::onLyricsListWidgetClicked(QModelIndex index)
 {
-    if (index.row() >= 0 && index.row() < m_lyrics.size()) {
+    const auto &lyrics = m_lrcParser->lyrics();
+    if (index.row() >= 0 && index.row() < lyrics.size()) {
         // 获取点击行对应的时间
-        qint64 time = m_lyrics[index.row()].time;
+        qint64 time = lyrics[index.row()].time;
         // 设置播放器位置
         if (m_playerController) {
             QMediaPlayer *player = m_playerController->GetPlayer();
@@ -508,10 +508,11 @@ void MainWindow::onLyricsListWidgetClicked(QModelIndex index)
 void MainWindow::onWheelTimerTimeout()
 {
     m_manualScroll = false;
-    if (!m_lyrics.isEmpty() && m_playerController) {
+    const auto &lyrics = m_lrcParser->lyrics();
+    if (!lyrics.isEmpty() && m_playerController) {
         qint64 position = m_playerController->GetPlayer()->position();
         int index = m_lrcParser->currentIndex(position);
-        if (index >= 0 && index < m_lyrics.size()) {
+        if (index >= 0 && index < lyrics.size()) {
             ui->lyricsListWidget->scrollToItem(ui->lyricsListWidget->item(index), QAbstractItemView::PositionAtCenter);
         }
     }
@@ -631,21 +632,22 @@ void MainWindow::MusicEnd()
     }
 }
 
-/** @brief 加载并缓存背景图，并生成当前尺寸的拉伸图。 */
+/** @brief 加载并缓存背景图，并生成当前尺寸的拉伸图。加载后清除原图以节省内存。 */
 void MainWindow::updateBackground()
 {
     QSettings settings("misaka", "MusicPlayer");
     QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
-    m_backgroundPixmap = QPixmap(bgPath);
-    if (m_backgroundPixmap.isNull()) {
-        m_backgroundPixmap = QPixmap(":/res/background_dark.png");
+    QPixmap original(bgPath);
+    if (original.isNull()) {
+        original = QPixmap(":/res/background_dark.png");
     }
     
     // 生成当前窗口尺寸的拉伸图
-    if (!m_backgroundPixmap.isNull()) {
-        m_cachedBackgroundPixmap = m_backgroundPixmap.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    if (!original.isNull()) {
+        m_cachedBackgroundPixmap = original.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     }
     
+    QPixmapCache::clear(); // 清理全局图片缓存，强制释放原始大图资源
     this->update(); // 触发重绘
 }
 
@@ -671,10 +673,8 @@ void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
 
-    // 重新生成拉伸背景图
-    if (!m_backgroundPixmap.isNull()) {
-        m_cachedBackgroundPixmap = m_backgroundPixmap.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-    }
+    // 重新生成拉伸背景图（会按需加载原图并立即释放）
+    updateBackground();
 
     if (m_emptyOverlayLabel) {
         // 让 overlay 始终覆盖窗口区域，文本自然居中
@@ -1033,22 +1033,27 @@ void MainWindow::performResize(const QPoint &pos)
     m_resizeStartGeometry = geometry;
 }
 
-/** @brief 槽：当按下moreButton按钮时触发。 */
+/** @brief 槽：当按下moreButton按钮时触发。采用懒加载模式。 */
 void MainWindow::moremenubuttonclick()
 {
-    if(m_moremenuwindow)
+    if(!m_moremenuwindow)
     {
-        if(m_moremenuwindow->isVisible())
-        {
-            m_moremenuwindow->hide();
-        }
-        else
-        {
-            int target_x = ui->moreButton->x() + ui->Controlwidget->x() + ui->toolWidget->x();
-            int target_y = ui->moreButton->y() + ui->Controlwidget->y() + ui->toolWidget->y() - 50;
-            m_moremenuwindow->move(target_x, target_y);
-            m_moremenuwindow->show();
-        }
+        m_moremenuwindow = new MoreMenu(this);
+        m_moremenuwindow->hide();
+        connect(m_moremenuwindow, &MoreMenu::addMusicClicked, this, &MainWindow::onAddMusicFromMoreMenu);
+        connect(m_moremenuwindow, &MoreMenu::setMusicDirClicked, this, &MainWindow::onSetMusicDirClicked);
+    }
+    
+    if(m_moremenuwindow->isVisible())
+    {
+        m_moremenuwindow->hide();
+    }
+    else
+    {
+        int target_x = ui->moreButton->x() + ui->Controlwidget->x() + ui->toolWidget->x();
+        int target_y = ui->moreButton->y() + ui->Controlwidget->y() + ui->toolWidget->y() - 50;
+        m_moremenuwindow->move(target_x, target_y);
+        m_moremenuwindow->show();
     }
 }
 
