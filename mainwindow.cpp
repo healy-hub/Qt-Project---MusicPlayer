@@ -23,6 +23,10 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QDateTime>
+#include <QSystemTrayIcon>
+#include <QCloseEvent>
+#include <QMessageBox>
+#include <QCheckBox>
 // #include "songunit.h"  <-- 这行已删除
 
 /** @brief 根据是否有歌曲启用/禁用播放相关控件，列表按钮始终可用；空列表时复位播放按钮图标。 */
@@ -116,6 +120,7 @@ void MainWindow::InitWindow()
     m_isDragging = false;
     m_lastLrcIndex = -1; // 初始化歌词索引
     updateBackground();  // 初始加载背景图
+    InitTrayIcon();      // 初始化系统托盘
 
     m_moremenuwindow = new MoreMenu(this);
     m_moremenuwindow->hide();
@@ -186,9 +191,24 @@ void MainWindow::InitButtons()
     ui->minimizeButton->setFocusPolicy(Qt::NoFocus);
     ui->maximizeButton->setFocusPolicy(Qt::NoFocus);
     ui->closeButton->setFocusPolicy(Qt::NoFocus);
-    ui->moreButton->setFocusPolicy(Qt::NoFocus);
+    ui->volumeSlider->setFocusPolicy(Qt::NoFocus);
+
+    // 初始化音量状态：默认 100% (1.0)
+    ui->volumeSlider->setValue(100);
+    if (m_playerController && m_playerController->GetAudioOutput()) {
+        m_playerController->GetAudioOutput()->setVolume(1.0);
+    }
+
+    connect(ui->volumeSlider, &QSlider::valueChanged, this, [this](int value){
+        if (m_playerController && m_playerController->GetAudioOutput()) {
+            // 使用 qreal 确保精度，并映射到 0.0 - 1.0 范围
+            qreal volume = qBound(0.0, static_cast<qreal>(value) / 100.0, 1.0);
+            m_playerController->GetAudioOutput()->setVolume(volume);
+        }
+    });
 
     connect(ui->modeButton, &QPushButton::clicked, this, [this](){
+
         if (!m_playerController) return;
         nextmode mode = m_playerController->GetPlayMode();
         if (mode == List_Play) { m_playerController->SetPlayMode(Repeat_Play); InitButtonIcon(ui->modeButton, ":/res/repeat play.png"); }
@@ -1057,4 +1077,177 @@ void MainWindow::showCoverContextMenu(const QPoint &pos)
     contextMenu.exec(ui->imagelabel->mapToGlobal(pos));
 }
 
+/** @brief 初始化系统托盘图标与菜单。 */
+void MainWindow::InitTrayIcon()
+{
+    m_trayIcon = new QSystemTrayIcon(this);
+    m_trayIcon->setIcon(QIcon(":/res/misaka.png"));
+    m_trayIcon->setToolTip("MusicPlayer");
 
+    m_trayMenu = new QMenu(this);
+    
+    QAction *playAction = new QAction("播放/暂停", this);
+    connect(playAction, &QAction::triggered, this, [this]() {
+        if (m_playerController) {
+            QMediaPlayer *player = m_playerController->GetPlayer();
+            if (player->isPlaying()) player->pause();
+            else player->play();
+        }
+    });
+
+    QAction *prevAction = new QAction("上一首", this);
+    connect(prevAction, &QAction::triggered, this, [this]() {
+        if (m_playerController) m_playerController->PlayPrevSong();
+    });
+
+    QAction *nextAction = new QAction("下一首", this);
+    connect(nextAction, &QAction::triggered, this, [this]() {
+        if (m_playerController) m_playerController->PlayNextSong();
+    });
+
+    QAction *showAction = new QAction("显示主界面", this);
+    connect(showAction, &QAction::triggered, this, &MainWindow::showNormal);
+
+    QAction *quitAction = new QAction("退出", this);
+    connect(quitAction, &QAction::triggered, qApp, &QCoreApplication::quit);
+
+    m_trayMenu->addAction(playAction);
+    m_trayMenu->addSeparator();
+    m_trayMenu->addAction(prevAction);
+    m_trayMenu->addAction(nextAction);
+    m_trayMenu->addSeparator();
+    m_trayMenu->addAction(showAction);
+    m_trayMenu->addAction(quitAction);
+
+    m_trayIcon->setContextMenu(m_trayMenu);
+
+    connect(m_trayIcon, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
+            if (isVisible()) hide();
+            else {
+                showNormal();
+                raise();
+                activateWindow();
+            }
+        }
+    });
+
+    m_trayIcon->show();
+}
+
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+
+/** @brief 自定义退出确认对话框，采用与主窗口一致的 UI 风格。 */
+class ExitConfirmDialog : public QDialog {
+public:
+    bool remember = false;
+    int choice = 0; // 1: minimize, 2: exit
+
+    ExitConfirmDialog(QWidget *parent) : QDialog(parent) {
+        setWindowFlags(Qt::FramelessWindowHint | Qt::Dialog);
+        setAttribute(Qt::WA_TranslucentBackground);
+        setFixedSize(360, 220);
+
+        QVBoxLayout *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(30, 25, 30, 25);
+        layout->setSpacing(15);
+
+        QLabel *titleLabel = new QLabel("退出确认", this);
+        titleLabel->setStyleSheet("color: white; font-size: 18px; font-weight: bold;");
+        titleLabel->setAlignment(Qt::AlignCenter);
+        layout->addWidget(titleLabel);
+
+        QLabel *msgLabel = new QLabel("您想要如何处理该窗口？", this);
+        msgLabel->setStyleSheet("color: rgba(255,255,255,200); font-size: 14px;");
+        msgLabel->setAlignment(Qt::AlignCenter);
+        layout->addWidget(msgLabel);
+
+        m_rememberCheckBox = new QCheckBox("记住我的选择，以后不再提示", this);
+        m_rememberCheckBox->setStyleSheet(
+            "QCheckBox { color: rgba(255,255,255,160); font-size: 13px; }"
+            "QCheckBox::indicator { width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(255,255,255,60); }"
+            "QCheckBox::indicator:checked { background-color: #2E86AB; border: 1px solid #2E86AB; }"
+        );
+        layout->addWidget(m_rememberCheckBox);
+
+        QHBoxLayout *btnLayout = new QHBoxLayout();
+        btnLayout->setSpacing(12);
+
+        QPushButton *minBtn = new QPushButton("最小化到托盘", this);
+        QPushButton *exitBtn = new QPushButton("退出程序", this);
+        QPushButton *cancelBtn = new QPushButton("取消", this);
+
+        QString btnStyle = 
+            "QPushButton { background-color: rgba(255,255,255,15); color: white; border-radius: 6px; padding: 8px 12px; font-size: 13px; }"
+            "QPushButton:hover { background-color: rgba(255,255,255,25); }"
+            "QPushButton:pressed { background-color: rgba(255,255,255,10); }";
+        
+        minBtn->setStyleSheet(btnStyle);
+        exitBtn->setStyleSheet(btnStyle + "QPushButton { background-color: rgba(255,80,80,40); } QPushButton:hover { background-color: rgba(255,80,80,60); }");
+        cancelBtn->setStyleSheet(btnStyle);
+
+        btnLayout->addWidget(minBtn);
+        btnLayout->addWidget(exitBtn);
+        btnLayout->addWidget(cancelBtn);
+        layout->addLayout(btnLayout);
+
+        connect(minBtn, &QPushButton::clicked, this, [this](){ choice = 1; remember = m_rememberCheckBox->isChecked(); accept(); });
+        connect(exitBtn, &QPushButton::clicked, this, [this](){ choice = 2; remember = m_rememberCheckBox->isChecked(); accept(); });
+        connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(QColor(33, 33, 41));
+        painter.setPen(Qt::NoPen);
+        painter.drawRoundedRect(rect(), 20, 20);
+        
+        // 绘制一条精致的边框
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen(QColor(255, 255, 255, 30), 1));
+        painter.drawRoundedRect(rect().adjusted(1,1,-1,-1), 20, 20);
+    }
+
+private:
+    QCheckBox *m_rememberCheckBox;
+};
+
+/** @brief 重写关闭事件，实现关闭或最小化到托盘的询问逻辑。 */
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    QSettings settings("misaka", "MusicPlayer");
+    bool remember = settings.value("CloseBehaviorRemember", false).toBool();
+    int behavior = settings.value("CloseBehavior", 0).toInt(); // 0: ask, 1: minimize, 2: exit
+
+    if (remember) {
+        if (behavior == 1) {
+            hide();
+            event->ignore();
+            return;
+        } else if (behavior == 2) {
+            qApp->quit();
+            return;
+        }
+    }
+
+    // 弹出自定义美化对话框
+    ExitConfirmDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        if (dialog.remember) {
+            settings.setValue("CloseBehaviorRemember", true);
+            settings.setValue("CloseBehavior", dialog.choice);
+        }
+        
+        if (dialog.choice == 1) {
+            hide();
+            event->ignore();
+        } else {
+            qApp->quit(); // 彻底退出
+        }
+    } else {
+        event->ignore();
+    }
+}

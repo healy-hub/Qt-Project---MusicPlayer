@@ -13,6 +13,7 @@ MediaPlayerPool::MediaPlayerPool(int maxConcurrent, QObject *parent)
     for (int i = 0; i < m_maxConcurrent; ++i) {
         Worker *worker = new Worker(this);
         worker->player = new QMediaPlayer(worker);
+        worker->player->setAudioOutput(nullptr); // 关键：解析元数据不需要音频输出，禁用以防抢占资源
         worker->busy = false;
         m_workers.append(worker);
         m_idleWorkers.enqueue(worker);

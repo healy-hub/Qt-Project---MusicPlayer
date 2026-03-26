@@ -17,6 +17,8 @@
 #include <QLabel>
 #include <QKeyEvent>
 #include <QColor>
+#include <QSystemTrayIcon>
+#include <QMenu>
 #include "musicplaylist.h"
 #include "playercontroller.h"
 #include "lrcparser.h"
@@ -45,6 +47,8 @@ private:
     bool m_isDragging;
     QPointF m_dragStartPos;
     MoreMenu *m_moremenuwindow;
+    QSystemTrayIcon *m_trayIcon;
+    QMenu *m_trayMenu;
 
     enum Edge {
         NoEdge = 0,
@@ -91,6 +95,7 @@ private:
     void startResize(Edge edge, const QPoint &pos);       // 开始调整大小时记录状态
     void performResize(const QPoint &pos);                // 根据鼠标移动计算并设置新几何
     void moremenubuttonclick();                           // 按下更多按钮执行操作
+    void InitTrayIcon();                                  // 初始化系统托盘图标与菜单
 
 private slots:
     void StatusChanged(QMediaPlayer::MediaStatus status); // 媒体状态变化：Loaded/Buffered 时应用 pendingSeek，EndOfMedia 时自动下一首
@@ -114,6 +119,7 @@ protected:
     void resizeEvent(QResizeEvent *event) override;       // 重绘圆角遮罩、更新 overlay 与列表位置
     bool eventFilter(QObject *obj, QEvent *event) override;  // 列表外点击隐藏、进度条 seek、歌词滚轮、窗口拖拽与边缘缩放
     void keyPressEvent(QKeyEvent *event) override;        // 键盘快进/后退
+    void closeEvent(QCloseEvent *event) override;         // 关闭时隐藏到托盘
 };
 
 #endif // MAINWINDOW_H

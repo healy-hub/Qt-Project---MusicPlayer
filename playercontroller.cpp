@@ -36,8 +36,19 @@ PlayerController::PlayerController(QObject *parent)
     , m_nextmode(List_Play)
     , m_shuffleIndex(0)
     , m_playToken(0)
+    , m_watcher(new QFileSystemWatcher(this))
 {
     m_player->setAudioOutput(m_audioOutput);
+    m_audioOutput->setDevice(QMediaDevices::defaultAudioOutput()); // 显式初始化为默认音频输出设备
+    m_audioOutput->setVolume(1.0); // 显式设置初始音量为 100%
+    m_audioOutput->setMuted(false); // 确保没有被静音
+
+    connect(m_player, &QMediaPlayer::errorOccurred, this, [this](QMediaPlayer::Error error, const QString &errorString) {
+        qDebug() << "MediaPlayer Error:" << error << errorString;
+    });
+
+    // 监听目录变化
+    connect(m_watcher, &QFileSystemWatcher::directoryChanged, this, &PlayerController::onDirectoryChanged);
 
     // 监听音频设备变化（如插入/拔出耳机），自动切换到新默认设备
     QMediaDevices *devices = new QMediaDevices(this);
@@ -234,8 +245,12 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
     if (!m_musicplaylist->isempty()) {
         ensureValidPlayIndex();
         m_player->setSource(m_musicplaylist->Geturl(m_playnum));
-        m_audioOutput->setVolume(1);
     }
+
+    // 开始监听目录变化
+    if (!m_monitoringPath.isEmpty()) m_watcher->removePath(m_monitoringPath);
+    m_monitoringPath = musicListPath;
+    m_watcher->addPath(m_monitoringPath);
 
     emit playlistAvailabilityChanged(!m_musicplaylist->isempty());
 }
@@ -285,7 +300,6 @@ void PlayerController::AddLocalFiles(const QStringList& filePaths)
     if (wasEmpty && !m_musicplaylist->isempty()) {
         ensureValidPlayIndex();
         m_player->setSource(m_musicplaylist->Geturl(m_playnum));
-        m_audioOutput->setVolume(1);
         emit playlistAvailabilityChanged(true);
     }
 
@@ -341,14 +355,14 @@ bool PlayerController::ensureValidPlayIndex()
  * 只负责设置播放源并在需要时自动调用 play()，
  * 不改变 m_playnum 值本身。
  */
-void PlayerController::PlaySong()
+void PlayerController::PlaySong(bool startPlaying)
 {
     if (!m_musicplaylist || m_musicplaylist->isempty()) return;
     if (!ensureValidPlayIndex()) return;
 
     m_player->setSource(m_musicplaylist->Geturl(m_playnum));
 
-    if (m_autoplay)
+    if (startPlaying || m_autoplay)
     {
         QTimer::singleShot(500, this, [this]() {
             m_autoplay = false;
@@ -395,7 +409,7 @@ void PlayerController::PlayPrevSong()
         }
     }
 
-    PlaySong();
+    PlaySong(true);
 }
 
 /**
@@ -435,7 +449,7 @@ void PlayerController::PlayNextSong()
         }
     }
 
-    PlaySong();
+    PlaySong(true);
 }
 
 /**
@@ -498,7 +512,31 @@ void PlayerController::OnChooseMusic(int id)
     {
         m_playnum = id;
     }
-    if (m_player->isPlaying()) m_autoplay = true;
-    PlaySong();
+    // 手动点击列表中某项，总是希望立即开始播放
+    PlaySong(true);
+}
+
+/** @brief 目录内容变化槽：自动感知并添加新歌。 */
+void PlayerController::onDirectoryChanged(const QString &path)
+{
+    QDir dir(path);
+    if (!dir.exists()) return;
+
+    const QFileInfoList allFiles = dir.entryInfoList(QDir::Files);
+    QStringList newFiles;
+
+    for (const QFileInfo& fileInfo : allFiles) {
+        const QString absPath = fileInfo.absoluteFilePath();
+        if (!isSupportedAudioFile(absPath)) continue;
+
+        const QUrl url = QUrl::fromLocalFile(absPath);
+        if (!m_urlToIndex.contains(url)) {
+            newFiles.append(absPath);
+        }
+    }
+
+    if (!newFiles.isEmpty()) {
+        AddLocalFiles(newFiles);
+    }
 }
 

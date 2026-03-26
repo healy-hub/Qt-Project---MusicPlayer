@@ -7,6 +7,7 @@
 #include <QMap>
 #include <QUrl>
 #include <QStringList>
+#include <QFileSystemWatcher>
 #include "musicplaylist.h"
 #include "mediaplayerpool.h"
 #include "playliststore.h"
@@ -30,7 +31,7 @@ public:
     void AddLocalFiles(const QStringList& filePaths);         // 运行期追加本地音乐（去重、写入 playlist.json、提交解析）
     void PlayPrevSong();                                      // 上一首（按当前模式）
     void PlayNextSong();                                      // 下一首（按当前模式）
-    void PlaySong();                                          // 根据 m_playnum 设置源并在需要时 play
+    void PlaySong(bool startPlaying = true);                                          // 根据 m_playnum 设置源并在需要时 play
     void MusicEnd();                                          // 播放结束入口，用于自动下一首
     void SetPlayMode(nextmode mode);
     nextmode GetPlayMode() const { return m_nextmode; }
@@ -42,6 +43,7 @@ signals:
 
 public slots:
     void OnChooseMusic(int id);                               // 由 MusicPlaylist 选中信号触发，切换并播放
+    void onDirectoryChanged(const QString &path);             // 目录变化处理
 
 private:
     QMediaPlayer *m_player;
@@ -51,6 +53,8 @@ private:
     QMap<QUrl, int> m_urlToIndex;
     MediaPlayerPool *m_pool;
     PlaylistStore m_store;
+    QFileSystemWatcher *m_watcher;
+    QString m_monitoringPath;
     bool m_autoplay;
     nextmode m_nextmode;
     QList<int> m_shuffleOrder;

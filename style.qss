@@ -166,7 +166,12 @@ QSlider::groove:horizontal {
 /* 已播放区域（滑块左侧） */
 QSlider::sub-page:horizontal {
     background: #543344;
-    border-radius: 4px; /* 轨道高度的一半，保持圆角 */
+    border-radius: 4px;
+}
+
+/* 音量条特定样式：保持与主进度条一致但略显轻盈 */
+QSlider#volumeSlider::sub-page:horizontal {
+    background: #555555;
 }
 
 /* 未播放区域（滑块右侧，淡蓝色） */
@@ -177,20 +182,19 @@ QSlider::add-page:horizontal {
 
 /* 滑块按钮（核心：确保圆形） */
 QSlider::handle:horizontal {
-    background: white; /* 滑块底色 */
-    border: 2px solid #2E86AB; /* 边框与已播放区域呼应 */
-    width: 16px; /* 宽度必须 = 高度，否则是椭圆 */
-    height: 16px; /* 与宽度一致 */
-    margin: -4px 0px; /* 垂直居中：-(滑块高度-轨道高度)/2 = -(16-8)/2 = -4 */
-    border-radius: 8px; /* 必须 = 宽度/2（16/2=8），否则是圆角矩形/方形 */
-    outline: none; /* 去掉焦点虚线框 */
+    background: white;
+    border: 2px solid #2E86AB;
+    width: 16px;
+    height: 16px;
+    margin: -4px 0px; 
+    border-radius: 8px;
+    outline: none;
 }
 
 /* 滑块悬浮效果（可选，增强体验） */
 QSlider::handle:horizontal:hover {
     background: #F0F8FF;
     border-color: #4169E1;
-    transform: scale(1.1); /* 悬浮轻微放大，可选 */
 }
 
 /* MoreMenu：暗色卡片风格（呼应 MusicPlaylist） */
