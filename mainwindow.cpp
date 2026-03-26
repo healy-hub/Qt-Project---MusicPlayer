@@ -177,6 +177,17 @@ void MainWindow::InitButtons()
     InitButtonIcon(ui->closeButton, ":/res/close.png", Qt::black);
     InitButtonIcon(ui->moreButton, ":/res/more.png");
 
+    // 禁用所有按钮的焦点，防止空格键意外触发上次点击的按钮
+    ui->prevButton->setFocusPolicy(Qt::NoFocus);
+    ui->playButton->setFocusPolicy(Qt::NoFocus);
+    ui->nextButton->setFocusPolicy(Qt::NoFocus);
+    ui->modeButton->setFocusPolicy(Qt::NoFocus);
+    ui->listButton->setFocusPolicy(Qt::NoFocus);
+    ui->minimizeButton->setFocusPolicy(Qt::NoFocus);
+    ui->maximizeButton->setFocusPolicy(Qt::NoFocus);
+    ui->closeButton->setFocusPolicy(Qt::NoFocus);
+    ui->moreButton->setFocusPolicy(Qt::NoFocus);
+
     connect(ui->modeButton, &QPushButton::clicked, this, [this](){
         if (!m_playerController) return;
         nextmode mode = m_playerController->GetPlayMode();
@@ -792,10 +803,12 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
         }
     }
 
-    // 处理键盘快进/后退
+    // 处理键盘控制
     if (event->type() == QEvent::KeyPress) {
         QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
-        if (keyEvent->key() == Qt::Key_Left || keyEvent->key() == Qt::Key_Right) {
+        Qt::Key key = static_cast<Qt::Key>(keyEvent->key());
+        if (key == Qt::Key_Left || key == Qt::Key_Right || key == Qt::Key_Space || 
+            key == Qt::Key_Up || key == Qt::Key_Down) {
             this->keyPressEvent(keyEvent);
             return true;
         }
@@ -805,9 +818,36 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     return QMainWindow::eventFilter(obj, event);
 }
 
-/** @brief 键盘按下事件：实现方向键快进/后退。单次按下 5s，长按 1s 步进。 */
+/** @brief 键盘按下事件：实现方向键快进/后退、切换歌曲及空格键播放/暂停。单次按下 5s，长按 1s 步进。 */
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_Space) {
+        if (m_playerController) {
+            QMediaPlayer *player = m_playerController->GetPlayer();
+            if (player->isPlaying()) {
+                player->pause();
+                InitButtonIcon(ui->playButton, ":/res/play.png");
+            } else if (player->playbackState() == QMediaPlayer::PausedState || player->playbackState() == QMediaPlayer::StoppedState) {
+                player->play();
+                InitButtonIcon(ui->playButton, ":/res/stop.png");
+            }
+        }
+        event->accept();
+        return;
+    }
+
+    if (event->key() == Qt::Key_Up) {
+        if (m_playerController) m_playerController->PlayPrevSong();
+        event->accept();
+        return;
+    }
+
+    if (event->key() == Qt::Key_Down) {
+        if (m_playerController) m_playerController->PlayNextSong();
+        event->accept();
+        return;
+    }
+
     if (event->key() == Qt::Key_Left || event->key() == Qt::Key_Right) {
         if (!m_playerController || m_playerController->GetCurrentIndex() < 0) {
             QMainWindow::keyPressEvent(event);
