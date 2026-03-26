@@ -574,7 +574,13 @@ void MainWindow::UpdateMetadata()
         if(key == QMediaMetaData::ThumbnailImage)
         {
             image_flag = false;
-            ui->imagelabel->setPixmap(QPixmap::fromImage(value.value<QImage>()));
+            QImage img = value.value<QImage>();
+            if (!img.isNull()) {
+                if (img.width() > 300 || img.height() > 300) {
+                    img = img.scaled(300, 300, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                }
+                ui->imagelabel->setPixmap(QPixmap::fromImage(img));
+            }
         }
         else if(key == QMediaMetaData::ContributingArtist)
         {

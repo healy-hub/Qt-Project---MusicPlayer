@@ -3,6 +3,8 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <QImageReader>
+#include <QBuffer>
+#include <QByteArray>
 
 // TagLib headers
 #include <taglib/tag.h>
@@ -65,9 +67,19 @@ void MediaPlayerPool::start()
                             TagLib::ID3v2::FrameList frames = mpegFile.ID3v2Tag()->frameList("APIC");
                             if (!frames.isEmpty()) {
                                 auto *frame = static_cast<TagLib::ID3v2::AttachedPictureFrame*>(frames.front());
-                                QImage image;
-                                image.loadFromData(reinterpret_cast<const uchar*>(frame->picture().data()), frame->picture().size());
-                                if (!image.isNull()) cover = QPixmap::fromImage(image);
+                                QByteArray data(reinterpret_cast<const char*>(frame->picture().data()), frame->picture().size());
+                                QBuffer buffer(&data);
+                                buffer.open(QIODevice::ReadOnly);
+                                QImageReader reader(&buffer);
+                                if (reader.canRead()) {
+                                    QSize imgSize = reader.size();
+                                    if (imgSize.isValid() && (imgSize.width() > 200 || imgSize.height() > 200)) {
+                                        imgSize.scale(200, 200, Qt::KeepAspectRatio);
+                                        reader.setScaledSize(imgSize);
+                                    }
+                                    QImage image = reader.read();
+                                    if (!image.isNull()) cover = QPixmap::fromImage(image);
+                                }
                             }
                         }
                     } else if (suffix == "flac") {
@@ -75,15 +87,22 @@ void MediaPlayerPool::start()
                         const TagLib::List<TagLib::FLAC::Picture*>& pictures = flacFile.pictureList();
                         if (!pictures.isEmpty()) {
                             TagLib::FLAC::Picture* pic = pictures.front();
-                            QImage image;
-                            image.loadFromData(reinterpret_cast<const uchar*>(pic->data().data()), pic->data().size());
-                            if (!image.isNull()) cover = QPixmap::fromImage(image);
+                            QByteArray data(reinterpret_cast<const char*>(pic->data().data()), pic->data().size());
+                            QBuffer buffer(&data);
+                            buffer.open(QIODevice::ReadOnly);
+                            QImageReader reader(&buffer);
+                            if (reader.canRead()) {
+                                QSize imgSize = reader.size();
+                                if (imgSize.isValid() && (imgSize.width() > 200 || imgSize.height() > 200)) {
+                                    imgSize.scale(200, 200, Qt::KeepAspectRatio);
+                                    reader.setScaledSize(imgSize);
+                                }
+                                QImage image = reader.read();
+                                if (!image.isNull()) cover = QPixmap::fromImage(image);
+                            }
                         }
                     }
                     
-                    if (!cover.isNull() && (cover.width() > 200 || cover.height() > 200)) {
-                        cover = cover.scaled(200, 200, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-                    }
                     res.cover = cover;
                     res.success = true;
                 }
