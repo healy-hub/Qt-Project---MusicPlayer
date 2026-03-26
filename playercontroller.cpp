@@ -61,17 +61,14 @@ PlayerController::PlayerController(QObject *parent)
     connect(m_pool, &MediaPlayerPool::taskFinished, this, [this](int taskId, const QPixmap &cover, const QString &title, const QString &artist) {
         if (!m_musicplaylist) return;
         if (taskId >= 0 && taskId < m_musicplaylist->Getsize()) {
-            QPixmap finalCover = cover;
-            if (finalCover.isNull()) {
-                finalCover = QPixmap(":/res/misaka.png");
-            }
-            m_musicplaylist->updateItem(taskId, finalCover, title, artist);
-
             const QUrl url = m_musicplaylist->Geturl(taskId);
             if (url.isValid()) {
                 m_store.load();
-                m_store.markMetadata(url.toString(), finalCover, title, artist);
+                m_store.markMetadata(url.toString(), cover, title, artist);
                 m_store.saveAtomic();
+
+                QString coverPath = m_store.coverAbsPathForKey(PlaylistStore::makeKeyFromUrlString(url.toString()));
+                m_musicplaylist->updateItem(taskId, title, artist, m_store.isFavorite(url.toString()), coverPath);
             }
         }
     });
@@ -142,9 +139,8 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
         }
 
         if (t.hasMetadata) {
-            QPixmap cover = m_store.loadCoverForTrack(t);
-            bool coverLoaded = !cover.isNull();
-            if (!coverLoaded) cover = defaultCover;
+            QString coverPath = m_store.coverAbsPathForKey(t.key);
+            if (!QFileInfo::exists(coverPath)) coverPath = QStringLiteral(":/res/misaka.png");
 
             QString title = t.title;
             // 如果缓存标题为空，尝试从 URL 获取文件名作为兜底
@@ -156,10 +152,10 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
             QString artist = t.artist;
             if (artist.isEmpty()) artist = "未知艺术家";
 
-            m_musicplaylist->AppendMusic(cover, url, title, artist, t.isFavorite);
+            m_musicplaylist->AppendMusic(url, title, artist, t.isFavorite, coverPath);
             
-            // 如果缓存声明有元数据但封面加载失败（比如本地缓存被手动删了），重新加入解析队列补全
-            if (!coverLoaded && m_pool) {
+            // 如果缓存声明有元数据但封面文件不存在，重新加入解析队列补全
+            if (coverPath == QStringLiteral(":/res/misaka.png") && m_pool) {
                 m_pool->addTask(url, index);
             }
         } else {
@@ -167,7 +163,7 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
             QString placeholderTitle = url.fileName();
             if (placeholderTitle.isEmpty()) placeholderTitle = "加载中";
             
-            m_musicplaylist->AppendMusic(defaultCover, url, placeholderTitle, "加载中", t.isFavorite);
+            m_musicplaylist->AppendMusic(url, placeholderTitle, "加载中", t.isFavorite, ":/res/misaka.png");
             if (m_pool) {
                 m_pool->addTask(url, index);
             }
@@ -200,7 +196,7 @@ void PlayerController::InitPlayList(MusicPlaylist *playlist)
         // 关键优化：如果该文件已经在缓存中（m_urlToIndex 已包含），则跳过，不再重复添加
         if (m_urlToIndex.contains(url)) continue;
 
-        m_musicplaylist->AppendMusic(defaultCover, url, "加载中", "加载中");
+        m_musicplaylist->AppendMusic(url, "加载中", "加载中", false, ":/res/misaka.png");
         m_urlToIndex[url] = index;
         if (m_pool) {
             m_pool->addTask(url, index);
@@ -239,7 +235,6 @@ void PlayerController::AddLocalFiles(const QStringList& filePaths)
     if (!m_musicplaylist) return;
 
     const bool wasEmpty = m_musicplaylist->isempty();
-    const QPixmap defaultCover(":/res/misaka.png");
 
     m_store.load();
     bool playlistChanged = false;
@@ -255,7 +250,7 @@ void PlayerController::AddLocalFiles(const QStringList& filePaths)
         if (m_urlToIndex.contains(url)) continue;
 
         const int newIndex = m_musicplaylist->Getsize();
-        m_musicplaylist->AppendMusic(defaultCover, url, "加载中", "加载中");
+        m_musicplaylist->AppendMusic(url, "加载中", "加载中", false, ":/res/misaka.png");
         m_urlToIndex[url] = newIndex;
 
         if (m_pool) {
@@ -509,7 +504,7 @@ void PlayerController::OnFavoriteToggle(int id)
 
     // 更新 UI (假设封面和标题艺术家不变)
     // 注意：这里可能需要从 store 获取完整的 track 信息来更新，但目前简化处理
-    m_musicplaylist->updateItem(id, QPixmap(), QString(), QString(), newFav);
+    m_musicplaylist->updateItem(id, QString(), QString(), newFav);
 }
 
 /** @brief 目录内容变化槽：自动感知并添加新歌。 */

@@ -6,13 +6,65 @@
 #include <QUrl>
 #include <QPoint>
 #include <QLabel>
-#include <QStandardItemModel>
 #include <QListView>
 #include <QSortFilterProxyModel>
+#include <QAbstractListModel>
 
 namespace Ui {
 class MusicPlaylist;
 }
+
+struct SongItem {
+    QString title;
+    QString artist;
+    QUrl url;
+    bool isFavorite{false};
+    QString coverPath;
+};
+
+class SongModel : public QAbstractListModel
+{
+    Q_OBJECT
+public:
+    explicit SongModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
+
+    int rowCount(const QModelIndex &parent = QModelIndex()) const override {
+        return parent.isValid() ? 0 : m_songs.size();
+    }
+
+    QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
+
+    void appendSong(const SongItem &song) {
+        beginInsertRows(QModelIndex(), m_songs.size(), m_songs.size());
+        m_songs.append(song);
+        endInsertRows();
+    }
+
+    void updateSong(int row, const SongItem &song) {
+        if (row < 0 || row >= m_songs.size()) return;
+        m_songs[row] = song;
+        emit dataChanged(index(row), index(row));
+    }
+
+    void removeSong(int row) {
+        if (row < 0 || row >= m_songs.size()) return;
+        beginRemoveRows(QModelIndex(), row, row);
+        m_songs.removeAt(row);
+        endRemoveRows();
+    }
+
+    void clear() {
+        beginResetModel();
+        m_songs.clear();
+        endResetModel();
+    }
+
+    const SongItem& getSong(int row) const { return m_songs[row]; }
+    int count() const { return m_songs.size(); }
+
+private:
+    QVector<SongItem> m_songs;
+};
 
 class PlaylistFilterProxyModel : public QSortFilterProxyModel
 {
@@ -40,16 +92,16 @@ public:
     explicit MusicPlaylist(QWidget *parent = nullptr);
     ~MusicPlaylist();
 
-    void AppendMusic(QPixmap pix, QUrl url, QString name, QString artist, bool isFav = false);
-    int appendSong(const QPixmap& pix, const QUrl& url, const QString& name, const QString& artist, bool isFav = false);
+    void AppendMusic(const QUrl& url, const QString& name, const QString& artist, bool isFav = false, const QString& coverPath = QString());
+    int appendSong(const QUrl& url, const QString& name, const QString& artist, bool isFav = false, const QString& coverPath = QString());
     bool removeSongAt(int index);
     void clearSongs();
     bool isempty();
     QUrl Geturl(const int n);
     int Getsize();
-    void updateItem(int idx, QPixmap image, QString name, QString artist, bool isFav = false);
+    void updateItem(int idx, const QString& name, const QString& artist, bool isFav = false, const QString& coverPath = QString());
     
-    bool hasSongs() const { return m_model->rowCount() > 0; }
+    bool hasSongs() const { return m_model->count() > 0; }
     void setTargetPos(const QPoint& p);
     QPoint targetPos() const;
     void showAnimated();
@@ -64,7 +116,7 @@ private slots:
 
 private:
     Ui::MusicPlaylist *ui;
-    QStandardItemModel *m_model;
+    SongModel *m_model;
     PlaylistFilterProxyModel *m_proxyModel;
     class SongItemDelegate *m_delegate;
 

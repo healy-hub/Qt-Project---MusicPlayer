@@ -282,19 +282,3 @@ bool PlaylistStore::markMetadata(const QString& urlString, const QPixmap& cover,
 
     return true;
 }
-
-QPixmap PlaylistStore::loadCoverForTrack(const Track& t) const
-{
-    if (!t.coverPath.isEmpty()) {
-        const QString abs = QDir(m_appDir).filePath(t.coverPath);
-        QPixmap pix;
-        if (pix.load(abs)) return pix;
-    }
-
-    if (!t.key.isEmpty()) {
-        QPixmap pix;
-        if (pix.load(coverAbsPathForKey(t.key))) return pix;
-    }
-
-    return {};
-}

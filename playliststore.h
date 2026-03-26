@@ -59,8 +59,6 @@ public:
     // Mark metadata as loaded; caches cover (png) and updates track fields.
     bool markMetadata(const QString& urlString, const QPixmap& cover, const QString& title, const QString& artist);
 
-    QPixmap loadCoverForTrack(const Track& t) const;
-
 private:
     QString m_appDir;
     QVector<Track> m_tracks;

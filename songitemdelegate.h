@@ -5,18 +5,23 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QApplication>
+#include <QCache>
+#include <QDir>
 
 class SongItemDelegate : public QStyledItemDelegate
 {
     Q_OBJECT
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    explicit SongItemDelegate(QObject *parent = nullptr) : QStyledItemDelegate(parent) {
+        m_coverCache.setMaxCost(100); // 缓存最近使用的 100 张封面缩略图
+    }
 
     enum DataRole {
         IdRole = Qt::UserRole + 1,
         UrlRole = Qt::UserRole + 2,
         ArtistRole = Qt::UserRole + 3,
-        FavoriteRole = Qt::UserRole + 4
+        FavoriteRole = Qt::UserRole + 4,
+        CoverPathRole = Qt::UserRole + 5
     };
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override
@@ -35,17 +40,37 @@ public:
         painter->setPen(QColor(255, 255, 255, 10));
         painter->drawLine(option.rect.bottomLeft(), option.rect.bottomRight());
 
-        // 获取数据 (由 Model 维护，确保是 60x60 缩略图)
-        QPixmap pixmap = index.data(Qt::DecorationRole).value<QPixmap>();
+        // 获取数据
         QString name = index.data(Qt::DisplayRole).toString();
         QString artist = index.data(ArtistRole).toString();
+        QString coverPath = index.data(CoverPathRole).toString();
 
-        // 1. 绘制封面图 (50x50, 居中垂直)
+        // 1. 绘制封面图 (50x50, 居中垂直) - 延迟加载与缓存
         int margin = 15;
         int imgSize = 50;
         QRect imgRect(option.rect.left() + margin + 5, option.rect.top() + (option.rect.height() - imgSize) / 2, imgSize, imgSize);
-        if (!pixmap.isNull()) {
-            painter->drawPixmap(imgRect, pixmap);
+        
+        QPixmap *cachedPix = nullptr;
+        if (!coverPath.isEmpty()) {
+            cachedPix = m_coverCache.object(coverPath);
+            if (!cachedPix) {
+                // 如果是相对路径，尝试拼接（假设封面在 AppData 下的 Metadata 目录，由 PlaylistStore 维护）
+                // 这里的处理逻辑需要与 PlaylistStore 存储路径对齐。
+                // 简单起见，如果 load 失败且路径不含 "/"，尝试拼接默认路径或让 PlayerController 传绝对路径。
+                // 事实上，PlayerController 现在可以传绝对路径。
+                QPixmap pix(coverPath);
+                if (!pix.isNull()) {
+                    if (pix.width() > 100 || pix.height() > 100) {
+                        pix = pix.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+                    }
+                    cachedPix = new QPixmap(pix);
+                    m_coverCache.insert(coverPath, cachedPix);
+                }
+            }
+        }
+
+        if (cachedPix && !cachedPix->isNull()) {
+            painter->drawPixmap(imgRect, *cachedPix);
         } else {
             // 默认灰色占位背景
             painter->fillRect(imgRect, QColor(40, 40, 40));
@@ -114,6 +139,9 @@ public:
         Q_UNUSED(index);
         return QSize(200, 80); // 行高固定为 80px
     }
+
+private:
+    mutable QCache<QString, QPixmap> m_coverCache;
 };
 
 #endif // SONGITEMDELEGATE_H

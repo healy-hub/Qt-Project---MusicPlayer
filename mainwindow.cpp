@@ -631,16 +631,21 @@ void MainWindow::MusicEnd()
     }
 }
 
-/** @brief 加载并缓存背景图，避免在 paintEvent 中频繁读取磁盘。 */
+/** @brief 加载并缓存背景图，并生成当前尺寸的拉伸图。 */
 void MainWindow::updateBackground()
 {
     QSettings settings("misaka", "MusicPlayer");
     QString bgPath = settings.value("BackgroundImage", ":/res/background_dark.png").toString();
     m_backgroundPixmap = QPixmap(bgPath);
     if (m_backgroundPixmap.isNull()) {
-        // 如果加载失败，可以设置一个默认颜色或尝试加载默认背景
         m_backgroundPixmap = QPixmap(":/res/background_dark.png");
     }
+    
+    // 生成当前窗口尺寸的拉伸图
+    if (!m_backgroundPixmap.isNull()) {
+        m_cachedBackgroundPixmap = m_backgroundPixmap.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
+    
     this->update(); // 触发重绘
 }
 
@@ -650,24 +655,26 @@ void MainWindow::paintEvent(QPaintEvent *event)
     Q_UNUSED(event);
     QPainter painter(this);
     
-    // 只有在需要高质量抗锯齿时才开启，背景图绘制通常不需要
-    painter.setRenderHint(QPainter::SmoothPixmapTransform);
-
     QPainterPath path;
     path.addRoundedRect(rect(), 20, 20);
     painter.setClipPath(path);
 
-    if (!m_backgroundPixmap.isNull()) {
-        painter.drawPixmap(rect(), m_backgroundPixmap);
+    if (!m_cachedBackgroundPixmap.isNull()) {
+        painter.drawPixmap(rect(), m_cachedBackgroundPixmap);
     } else {
         painter.fillPath(path, QColor(33, 33, 41)); // Fallback color
     }
 }
 
-/** @brief 窗口大小变化时重绘圆角遮罩、更新空列表 overlay 几何、播放列表位置与歌词列表高度。 */
+/** @brief 窗口大小变化时重绘圆角遮罩、更新拉伸背景图、更新空列表 overlay 几何、播放列表位置与歌词列表高度。 */
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
+
+    // 重新生成拉伸背景图
+    if (!m_backgroundPixmap.isNull()) {
+        m_cachedBackgroundPixmap = m_backgroundPixmap.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    }
 
     if (m_emptyOverlayLabel) {
         // 让 overlay 始终覆盖窗口区域，文本自然居中
